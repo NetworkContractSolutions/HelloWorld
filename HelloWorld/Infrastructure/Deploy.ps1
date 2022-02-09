@@ -18,8 +18,10 @@ $temp = "$env:USERPROFILE\temp\HelloWorld"
 
 kubectl create namespace example-local
 
+# Command needed if certificate won't validate
+kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
+
 # To YAML then apply: https://stackoverflow.com/questions/45879498/how-can-i-update-a-secret-on-kubernetes-when-it-is-generated-from-a-file
-# Command needed if certificate won't validate: kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
 kubectl create secret generic helloworld-tls-secret --from-file=tls.crt="$temp\server.crt" --from-file=tls.key="$temp\server.key" -n example-local --save-config --dry-run=client -o yaml | kubectl apply -f -
 
 Remove-Item *.tgz
