@@ -35,8 +35,7 @@ helm upgrade helloworld $helmfile.ToString() `
     --set ingress.hosts[0].dns=$dns `
     --set ingress.hosts[0].serviceName=helloworld-service `
     --set ingress.tls[0].secretName=helloworld-tls-secret `
-    --set ingress.tls[0].hosts[0]=$dns `
-	--set secrets[0].name=helloworld-tls-secret
+    --set ingress.tls[0].hosts[0]=$dns
 <#
 helm list --namespace example-local
 helm uninstall helloworld --namespace example-local
