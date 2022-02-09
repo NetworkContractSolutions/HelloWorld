@@ -8,10 +8,11 @@ Simple HelloWorld application with Kubernetes, Helm and an ingress controller.
 1. OpenSSL (comes with Git for Windows)
 
 ##### Instructions:
-From any PowerShell open and run .\Infrastructure\DeployAll.ps1.
+1. From any PowerShell open and run .\Infrastructure\DeployAll.ps1.
+1. Explore cluster with .\Documentation\SampleCommands.ps1
 
 ##### Result:
-The website https://helloworld.localtest.me should open in your browser once everything has been deployed (refresh the screen a couple of times if you get a default the NGINX page).
+The website https://helloworld.localtest.me should open in your browser once everything has been deployed (refresh the screen a couple of times if you get a default NGINX page).
 
 ##### References:
 1. [Kubernetes](https://www.youtube.com/watch?v=X48VuDVv0do)
