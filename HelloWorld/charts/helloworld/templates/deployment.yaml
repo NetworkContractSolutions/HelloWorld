@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helloworld-web
+  labels:
+    app: helloworld-web
+spec:
+  revisionHistoryLimit: 0
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: "helloworld-web"
+  template:
+    metadata:
+      labels:
+        app: "helloworld-web"
+    spec:
+      containers:
+        - name: "helloworld-web"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.deployment.containerPort }}
+              protocol: TCP

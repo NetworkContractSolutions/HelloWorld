@@ -1,0 +1,53 @@
+# Default values for helloworld.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+fullnameOverride: helloworld
+replicaCount: 1
+image:
+  repository: helloworld
+  tag: stable
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+  # Optionally specify an array of imagePullSecrets.
+  # Secrets must be manually created in the namespace.
+  # ref: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+  #
+  # This uses credentials from secret "myRegistryKeySecretName".
+  # - name: myRegistryKeySecretName
+service:
+  type: ClusterIP
+  port: 80
+
+deployment:
+  containerPort: 80
+
+probes:
+  enabled: false
+
+ingress:
+  annotations: {}
+  #path: /
+  hosts: []
+    # - dns: 
+    #   serviceName: 
+  tls: []
+    # - secretName: chart-example-tls
+    #   hosts:
+    #     - chart-example.local
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #  cpu: 100m
+  #  memory: 128Mi
+  # requests:
+  #  cpu: 100m
+  #  memory: 128Mi
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
