@@ -5,12 +5,128 @@ parameters:
   default: true
 
 trigger: 
-  #batch: true
-  branches:
-    include:
-    - main
   paths:
     include:
     - 'Infrastructure/Pipelines/*'
     - 'HelloWorld/*'
 
+variables:
+  ContainerRegistryRepository: 'helloworld'
+  Region: 'eastus2'
+  ContainerAppsEnvironment: 'helloworld-dev-environment-$(Build.BuildId)'
+  ContainerAppName: 'helloworld-dev-container-app-$(Build.BuildId)'
+  ResourceGroup: 'helloworld-dev-resource-group-$(Build.BuildId)'
+  #variables that are defined in the pipeline
+  #ContainerRegistrySC: <Service Connection for the Container Registry>
+  #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
+  #LogAnalyticsWorkspace
+  #LogAnalyticsResourceGroup: <Log analytics isn't created here and we can't assume that the container app and log analytics will be in the same resource group>
+  #ContainerRegistryLoginServer
+  #ContainerRegistryUsername
+  #ContainerRegistryPassword
+
+stages:
+- stage: Build
+  displayName: Build stage
+  pool:
+    vmImage: 'ubuntu-latest'
+  jobs:
+  - job: Package
+    displayName: Package job
+    steps:
+    - task: Docker@2
+      displayName: Build and Push
+      inputs:
+        command: buildAndPush
+        containerRegistry: '$(ContainerRegistrySC)'
+        repository: '$(ContainerRegistryRepository)'
+        tags: $(Build.BuildId)
+        Dockerfile: '**/HelloWorld/Dockerfile'
+
+- stage: Deploy
+  displayName: Deploy stage
+  dependsOn: Build
+  pool:
+    vmImage: 'ubuntu-latest'
+  jobs:
+  - deployment: Deploy
+    displayName: Deploy job
+    environment: 'Dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureCLI@2
+            displayName: 'Create Resource Group'
+            inputs:
+              azureSubscription: '$(AzureResourceManagerSC)'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: | 
+                az group create -l $(Region) -n $(ResourceGroup)
+
+          - task: AzureCLI@2
+            displayName: 'Container App - Init Extension'
+            inputs:
+              azureSubscription: '$(AzureResourceManagerSC)'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: | 
+                az extension add --source https://workerappscliextension.blob.core.windows.net/azure-cli-extension/containerapp-0.2.2-py2.py3-none-any.whl --yes
+                az provider register --namespace Microsoft.Web
+
+          - task: AzureCLI@2
+            displayName: 'Container App - Create Environment'
+            inputs:
+              azureSubscription: '$(AzureResourceManagerSC)'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: | 
+                $CLIENT_ID=(az monitor log-analytics workspace show --query customerId -g $(LogAnalyticsResourceGroup) -n $(LogAnalyticsWorkspace) --out tsv)
+                $CLIENT_SECRET=(az monitor log-analytics workspace get-shared-keys --query primarySharedKey -g $(LogAnalyticsResourceGroup) -n $(LogAnalyticsWorkspace) --out tsv)
+
+                az containerapp env create `
+                  --name $(ContainerAppsEnvironment) `
+                  --resource-group $(ResourceGroup) `
+                  --logs-workspace-id $CLIENT_ID `
+                  --logs-workspace-key $CLIENT_SECRET `
+                  --location $(Region)
+
+          - task: AzureCLI@2
+            displayName: 'Container App - Create'
+            inputs:
+              azureSubscription: '$(AzureResourceManagerSC)'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: | 
+                az containerapp create `
+                  --name $(ContainerAppName) `
+                  --resource-group $(ResourceGroup) `
+                  --environment $(ContainerAppsEnvironment) `
+                  --image $(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId) `
+                  --target-port 80 `
+                  --ingress 'external' `
+                  --query configuration.ingress.fqdn `
+                  --registry-login-server $(ContainerRegistryLoginServer) `
+                  --registry-username $(ContainerRegistryUsername) `
+                  --registry-password $(ContainerRegistryPassword)
+
+- stage: Teardown
+  displayName: Teardown stage
+  dependsOn: Deploy
+  condition: eq('${{ parameters.teardown }}', true)
+  pool:
+    vmImage: 'ubuntu-latest'
+  jobs:
+  - job: Teardown
+    displayName: Teardown job
+    steps:
+    - checkout: none
+    - task: AzureCLI@2
+      displayName: 'Delete Resource Group'
+      inputs:
+        azureSubscription: '$(AzureResourceManagerSC)'
+        scriptType: 'pscore'
+        scriptLocation: 'inlineScript'
+        inlineScript: | 
+          az group delete -n $(ResourceGroup) --yes --no-wait
