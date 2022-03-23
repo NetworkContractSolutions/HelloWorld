@@ -122,7 +122,8 @@ stages:
   pool:
     vmImage: 'windows-2022'
   jobs:
-  - job: BuildTests
+  - job: RunTests
+    displayName: Run Tests
     variables:
       HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.createapp.ContainerAppUrl'] ]
     steps:
