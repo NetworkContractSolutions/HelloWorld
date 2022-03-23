@@ -94,12 +94,13 @@ stages:
 
           - task: AzureCLI@2
             displayName: 'Container App - Create'
+            name: createapp
             inputs:
               azureSubscription: '$(AzureResourceManagerSC)'
               scriptType: 'pscore'
               scriptLocation: 'inlineScript'
               inlineScript: | 
-                az containerapp create `
+                $url = az containerapp create `
                   --name $(ContainerAppName) `
                   --resource-group $(ResourceGroup) `
                   --environment $(ContainerAppsEnvironment) `
@@ -110,10 +111,40 @@ stages:
                   --registry-login-server $(ContainerRegistryLoginServer) `
                   --registry-username $(ContainerRegistryUsername) `
                   --registry-password $(ContainerRegistryPassword)
+                
+                $url = "https://" + $url.Trim("""");
+                Write-Host $url
+                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$url"
+      
+- stage: Test
+  displayName: Test stage
+  dependsOn: Deploy
+  pool:
+    vmImage: 'windows-2022'
+  jobs:
+  - job: BuildTests
+    variables:
+      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.createapp.ContainerAppUrl'] ]
+    steps:
+    - script: dotnet build --configuration Debug
+      displayName: 'Build .NET 6 Application'
+
+    - task: VSTest@2
+      displayName: 'HelloWorld UI Tests'
+      inputs:
+        testAssemblyVer2: |
+          **/*.IntegrationTests.dll
+          !**\*TestAdapter.dll
+          !**\obj\**
+          !**\bin\**\ref\**
+        uiTests: true
+        searchFolder: '$(System.DefaultWorkingDirectory)'
+        failOnMinTestsNotRun: true
+        minimumExpectedTests: '1'
 
 - stage: Teardown
   displayName: Teardown stage
-  dependsOn: Deploy
+  dependsOn: Test
   condition: eq('${{ parameters.teardown }}', true)
   pool:
     vmImage: 'ubuntu-latest'
