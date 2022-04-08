@@ -72,6 +72,7 @@ stages:
               scriptType: 'pscore'
               scriptLocation: 'inlineScript'
               inlineScript: | 
+                az extension add --name containerapp
                 az provider register --namespace Microsoft.App
 
           - task: AzureCLI@2
@@ -87,6 +88,8 @@ stages:
                 az containerapp env create `
                   --name $(ContainerAppsEnvironment) `
                   --resource-group $(ResourceGroup) `
+                  --logs-workspace-id $CLIENT_ID `
+                  --logs-workspace-key $CLIENT_SECRET `
                   --location $(Region)
 
           - task: AzureCLI@2
