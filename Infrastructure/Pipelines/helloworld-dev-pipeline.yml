@@ -72,7 +72,6 @@ stages:
               scriptType: 'pscore'
               scriptLocation: 'inlineScript'
               inlineScript: | 
-                az extension add --source https://workerappscliextension.blob.core.windows.net/azure-cli-extension/containerapp-0.2.2-py2.py3-none-any.whl --yes
                 az provider register --namespace Microsoft.App
 
           - task: AzureCLI@2
@@ -88,8 +87,6 @@ stages:
                 az containerapp env create `
                   --name $(ContainerAppsEnvironment) `
                   --resource-group $(ResourceGroup) `
-                  --logs-workspace-id $CLIENT_ID `
-                  --logs-workspace-key $CLIENT_SECRET `
                   --location $(Region)
 
           - task: AzureCLI@2
