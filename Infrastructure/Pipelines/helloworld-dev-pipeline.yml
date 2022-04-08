@@ -108,7 +108,7 @@ stages:
                   --target-port 80 `
                   --ingress 'external' `
                   --query configuration.ingress.fqdn `
-                  --registry-login-server $(ContainerRegistryLoginServer) `
+                  --registry-server $(ContainerRegistryLoginServer) `
                   --registry-username $(ContainerRegistryUsername) `
                   --registry-password $(ContainerRegistryPassword)
                 
