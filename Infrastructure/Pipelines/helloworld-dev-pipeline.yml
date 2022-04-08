@@ -73,7 +73,7 @@ stages:
               scriptLocation: 'inlineScript'
               inlineScript: | 
                 az extension add --source https://workerappscliextension.blob.core.windows.net/azure-cli-extension/containerapp-0.2.2-py2.py3-none-any.whl --yes
-                az provider register --namespace Microsoft.Web
+                az provider register --namespace Microsoft.App
 
           - task: AzureCLI@2
             displayName: 'Container App - Create Environment'
