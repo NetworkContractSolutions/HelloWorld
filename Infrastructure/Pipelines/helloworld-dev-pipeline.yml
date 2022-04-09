@@ -16,7 +16,7 @@ variables:
   ContainerAppsEnvironment: 'Dev'
   ContainerAppName: 'helloworld-dev-container-app-$(Build.BuildId)'
   ResourceGroup: 'helloworld-dev-resource-group-$(Build.BuildId)'
-  #variables that are defined in the pipeline
+  #Variables that are defined in the pipeline
   #ContainerRegistrySC: <Service Connection for the Container Registry>
   #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
   #LogAnalyticsWorkspace
@@ -74,23 +74,6 @@ stages:
               inlineScript: | 
                 az extension add --name containerapp
                 az provider register --namespace Microsoft.App
-
-          - task: AzureCLI@2
-            displayName: 'Container App - Create Environment'
-            inputs:
-              azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'pscore'
-              scriptLocation: 'inlineScript'
-              inlineScript: | 
-                $CLIENT_ID=(az monitor log-analytics workspace show --query customerId -g $(LogAnalyticsResourceGroup) -n $(LogAnalyticsWorkspace) --out tsv)
-                $CLIENT_SECRET=(az monitor log-analytics workspace get-shared-keys --query primarySharedKey -g $(LogAnalyticsResourceGroup) -n $(LogAnalyticsWorkspace) --out tsv)
-
-                az containerapp env create `
-                  --name $(ContainerAppsEnvironment) `
-                  --resource-group $(ResourceGroup) `
-                  --logs-workspace-id $CLIENT_ID `
-                  --logs-workspace-key $CLIENT_SECRET `
-                  --location $(Region)
 
           - task: AzureCLI@2
             displayName: 'Container App - Create'
