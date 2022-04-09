@@ -13,7 +13,6 @@ trigger:
 variables:
   ContainerRegistryRepository: 'helloworld'
   Region: 'eastus2'
-  ContainerAppsEnvironment: 'Dev'
   ContainerAppName: 'helloworld-dev-container-app-$(Build.BuildId)'
   ResourceGroup: 'helloworld-dev-resource-group-$(Build.BuildId)'
   #Variables that are defined in the pipeline
@@ -24,6 +23,7 @@ variables:
   #ContainerRegistryLoginServer
   #ContainerRegistryUsername
   #ContainerRegistryPassword
+  #ContainerAppsEnvironment: <The id of the container app environment (az containerapp env list) TODO pass in the common name and query ID>
 
 stages:
 - stage: Build
@@ -86,17 +86,18 @@ stages:
                 $url = az containerapp create `
                   --name $(ContainerAppName) `
                   --resource-group $(ResourceGroup) `
-                  --environment $(ContainerAppsEnvironment) `
+                  --environment '$(ContainerAppsEnvironment)' `
                   --image $(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId) `
                   --target-port 80 `
                   --ingress 'external' `
-                  --query configuration.ingress.fqdn `
+                  --query properties.configuration.ingress.fqdn `
                   --registry-server $(ContainerRegistryLoginServer) `
                   --registry-username $(ContainerRegistryUsername) `
                   --registry-password $(ContainerRegistryPassword)
                 
+                Write-Host $url
             # $url = "https://" + $url.Trim("""");
-            # Write-Host $url
+                
             # Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$url"
       
 # - stage: Test
