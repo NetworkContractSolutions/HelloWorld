@@ -23,7 +23,7 @@ variables:
   #ContainerRegistryLoginServer
   #ContainerRegistryUsername
   #ContainerRegistryPassword
-  #ContainerAppsEnvironment: <The id of the container app environment (az containerapp env list) TODO pass in the common name and query ID>
+  #ContainerAppEnvironment: <The id of the container app environment (az containerapp env list) TODO pass in the common name and query ID>
 
 stages:
 - stage: Build
@@ -86,7 +86,7 @@ stages:
                 $url = az containerapp create `
                   --name $(ContainerAppName) `
                   --resource-group $(ResourceGroup) `
-                  --environment '$(ContainerAppsEnvironment)' `
+                  --environment $(ContainerAppEnvironment) `
                   --image $(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId) `
                   --target-port 80 `
                   --ingress 'external' `
