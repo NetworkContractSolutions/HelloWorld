@@ -23,7 +23,7 @@ variables:
   #ContainerRegistryLoginServer
   #ContainerRegistryUsername
   #ContainerRegistryPassword
-  #ContainerAppEnvironment: <The id of the container app environment (az containerapp env list) TODO pass in the common name and query ID>
+  #ContainerAppEnvironment: <The id of the container app environment (az containerapp env list)>
 
 stages:
 - stage: Build
@@ -95,7 +95,7 @@ stages:
                   --registry-username $(ContainerRegistryUsername) `
                   --registry-password $(ContainerRegistryPassword)
                 
-                Write-Host $url
+                Write-Host "url " + $url
             # $url = "https://" + $url.Trim("""");
                 
             # Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$url"
