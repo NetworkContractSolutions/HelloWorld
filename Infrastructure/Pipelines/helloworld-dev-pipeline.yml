@@ -96,7 +96,16 @@ stages:
                   --registry-password $(ContainerRegistryPassword)
                 
                 if (!$url) { return; }
+                Write-Host "1"
                 Write-Host $url
+                Write-Host "1"
+                Write-Host $url.IndexOf("""")
+                Write-Host "1"
+                Write-Host $url.Substring($url.IndexOf(""""))
+                Write-Host "1"
+                Write-Host $url.Substring($url.IndexOf(""""))
+                Write-Host "1"
+                Write-Host $url.Substring($url.IndexOf("""")).Trim("""")
 
                 if ($url.IndexOf("""") -eq -1) { return; }
                 $url = $url.Substring($url.IndexOf("""")).Trim("""")
