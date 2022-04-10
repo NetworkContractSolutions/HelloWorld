@@ -95,7 +95,7 @@ stages:
                   --registry-username $(ContainerRegistryUsername) `
                   --registry-password $(ContainerRegistryPassword)
                 
-                Write-Host "url " + $url
+                Write-Host "url " + $url.Trim("Running", "fasdfds")
             # $url = "https://" + $url.Trim("""");
                 
             # Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$url"
