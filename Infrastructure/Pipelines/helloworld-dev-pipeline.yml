@@ -90,46 +90,47 @@ stages:
                   --image $(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId) `
                   --target-port 80 `
                   --ingress 'external' `
+                  --query properties.configuration.ingress.fqdn `
                   --registry-server $(ContainerRegistryLoginServer) `
                   --registry-username $(ContainerRegistryUsername) `
                   --registry-password $(ContainerRegistryPassword)
                 
-                Write-Host "url " + $url.Replace("Running", "fasdfds")
-            # --query properties.configuration.ingress.fqdn `
-            # $url = "https://" + $url.Trim("""");
-                
-            # Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$url"
+                if (!$url) { return; }
+                $url = $url.Substring($url.IndexOf("""")).Trim("""")
+            
+                Write-Host $url
+                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$url"
       
-# - stage: Test
-#   displayName: Test stage
-#   dependsOn: Deploy
-#   pool:
-#     vmImage: 'windows-2022'
-#   jobs:
-#   - job: RunTests
-#     displayName: Run Tests
-#     variables:
-#       HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.createapp.ContainerAppUrl'] ]
-#     steps:
-#     - script: dotnet build --configuration Debug
-#       displayName: 'Build .NET 6 Application'
+- stage: Test
+  displayName: Test stage
+  dependsOn: Deploy
+  pool:
+    vmImage: 'windows-2022'
+  jobs:
+  - job: RunTests
+    displayName: Run Tests
+    variables:
+      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.createapp.ContainerAppUrl'] ]
+    steps:
+    - script: dotnet build --configuration Debug
+      displayName: 'Build .NET 6 Application'
 
-#     - task: VSTest@2
-#       displayName: 'HelloWorld UI Tests'
-#       inputs:
-#         testAssemblyVer2: |
-#           **/*.IntegrationTests.dll
-#           !**\*TestAdapter.dll
-#           !**\obj\**
-#           !**\bin\**\ref\**
-#         uiTests: true
-#         searchFolder: '$(System.DefaultWorkingDirectory)'
-#         failOnMinTestsNotRun: true
-#         minimumExpectedTests: '1'
+    - task: VSTest@2
+      displayName: 'HelloWorld UI Tests'
+      inputs:
+        testAssemblyVer2: |
+          **/*.IntegrationTests.dll
+          !**\*TestAdapter.dll
+          !**\obj\**
+          !**\bin\**\ref\**
+        uiTests: true
+        searchFolder: '$(System.DefaultWorkingDirectory)'
+        failOnMinTestsNotRun: true
+        minimumExpectedTests: '1'
 
 - stage: Teardown
   displayName: Teardown stage
-  dependsOn: Deploy
+  dependsOn: Test
   condition: eq('${{ parameters.teardown }}', true)
   pool:
     vmImage: 'ubuntu-latest'
