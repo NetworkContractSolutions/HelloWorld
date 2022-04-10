@@ -99,16 +99,14 @@ stages:
                 Write-Host "1"
                 Write-Host $url
                 Write-Host "1"
-                Write-Host $url.IndexOf("""")
+                Write-Host $url.IndexOf("$(ContainerAppName)")
                 Write-Host "1"
-                Write-Host $url.Substring($url.IndexOf(""""))
+                Write-Host $url.Substring($url.IndexOf("$(ContainerAppName)"))
                 Write-Host "1"
-                Write-Host $url.Substring($url.IndexOf(""""))
-                Write-Host "1"
-                Write-Host $url.Substring($url.IndexOf("""")).Trim("""")
+                Write-Host $url.Substring($url.IndexOf("$(ContainerAppName)")).Trim("""")
 
-                if ($url.IndexOf("""") -eq -1) { return; }
-                $url = $url.Substring($url.IndexOf("""")).Trim("""")
+                if ($url.IndexOf("$(ContainerAppName)") -eq -1) { return; }
+                $url = $url.Substring($url.IndexOf("$(ContainerAppName)")).Trim("""")
             
                 Write-Host $url
                 Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$url"
