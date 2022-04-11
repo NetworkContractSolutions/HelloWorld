@@ -77,7 +77,6 @@ stages:
 
           - task: AzureCLI@2
             displayName: 'Container App - Create'
-            name: createapp
             inputs:
               azureSubscription: '$(AzureResourceManagerSC)'
               scriptType: 'pscore'
@@ -93,6 +92,19 @@ stages:
                   --registry-server $(ContainerRegistryLoginServer) `
                   --registry-username $(ContainerRegistryUsername) `
                   --registry-password $(ContainerRegistryPassword)
+
+          - task: AzureCLI@2
+            displayName: 'Get CA URL'
+            name: retrieveurl
+            inputs:
+              azureSubscription: '$(AzureResourceManagerSC)'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: | 
+                $aca = az containerapp list -g $(ResourceGroup) | ConvertFrom-Json | Where-Object {$_.name -eq "$(ContainerAppName)"} | Select-Object -First 1
+
+                $url = "https://" + $aca.properties.configuration.ingress.fqdn 
+                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$url"
       
 - stage: Test
   displayName: Test stage
@@ -102,19 +114,9 @@ stages:
   jobs:
   - job: RunTests
     displayName: Run Tests
+    variables:
+      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
     steps:
-    - task: AzureCLI@2
-      displayName: 'Set Test URL'
-      inputs:
-        azureSubscription: '$(AzureResourceManagerSC)'
-        scriptType: 'pscore'
-        scriptLocation: 'inlineScript'
-        inlineScript: | 
-          $aca = az containerapp list -g $(ResourceGroup) | ConvertFrom-Json | Where-Object {$_.name -eq "$(ContainerAppName)"} | Select-Object -First 1
-
-          $url = "https://" + $aca.properties.configuration.ingress.fqdn 
-          echo "##vso[task.setvariable variable=HomePageUrl;]$url"
-
     - script: dotnet build --configuration Debug
       displayName: 'Build .NET 6 Application'
 
