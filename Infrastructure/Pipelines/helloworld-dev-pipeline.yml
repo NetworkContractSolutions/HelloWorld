@@ -83,33 +83,16 @@ stages:
               scriptType: 'pscore'
               scriptLocation: 'inlineScript'
               inlineScript: | 
-                $url = az containerapp create `
+                az containerapp create `
                   --name $(ContainerAppName) `
                   --resource-group $(ResourceGroup) `
                   --environment $(ContainerAppEnvironment) `
                   --image $(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId) `
                   --target-port 80 `
                   --ingress 'external' `
-                  --query properties.configuration.ingress.fqdn `
                   --registry-server $(ContainerRegistryLoginServer) `
                   --registry-username $(ContainerRegistryUsername) `
                   --registry-password $(ContainerRegistryPassword)
-                
-                if (!$url) { return; }
-                Write-Host "1"
-                Write-Host $url
-                Write-Host "1"
-                Write-Host $url.IndexOf("$(ContainerAppName)")
-                Write-Host "1"
-                Write-Host $url.Substring($url.IndexOf("$(ContainerAppName)"))
-                Write-Host "1"
-                Write-Host $url.Substring($url.IndexOf("$(ContainerAppName)")).Trim("""")
-
-                if ($url.IndexOf("$(ContainerAppName)") -eq -1) { return; }
-                $url = $url.Substring($url.IndexOf("$(ContainerAppName)")).Trim("""")
-            
-                Write-Host $url
-                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$url"
       
 - stage: Test
   displayName: Test stage
@@ -122,6 +105,18 @@ stages:
     variables:
       HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.createapp.ContainerAppUrl'] ]
     steps:
+    - task: AzureCLI@2
+      displayName: 'Container App - Create'
+      inputs:
+        azureSubscription: '$(AzureResourceManagerSC)'
+        scriptType: 'pscore'
+        scriptLocation: 'inlineScript'
+        inlineScript: | 
+          $aca = az containerapp list -g $(ResourceGroup) | ConvertFrom-Json | Where-Object {$_.name -eq "$(ContainerAppName)"} | Select-Object -First 1
+
+          $url = "https://" + $aca.properties.configuration.ingress.fqdn 
+          echo "##vso[task.setvariable variable=HomePageUrl;]$url"
+
     - script: dotnet build --configuration Debug
       displayName: 'Build .NET 6 Application'
 
