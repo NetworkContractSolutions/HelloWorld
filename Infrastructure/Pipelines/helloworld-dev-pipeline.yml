@@ -104,7 +104,7 @@ stages:
     displayName: Run Tests
     steps:
     - task: AzureCLI@2
-      displayName: 'Container App - Create'
+      displayName: 'Set Test URL'
       inputs:
         azureSubscription: '$(AzureResourceManagerSC)'
         scriptType: 'pscore'
