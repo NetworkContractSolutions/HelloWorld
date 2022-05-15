@@ -24,6 +24,7 @@ variables:
   #ContainerRegistryUsername
   #ContainerRegistryPassword
   #ContainerAppEnvironment: <The id of the container app environment (az containerapp env list)>
+  #ApiIdentity: <Space-separated user identities to be assigned.>
 
 stages:
 - stage: Build
@@ -91,7 +92,9 @@ stages:
                   --ingress 'external' `
                   --registry-server $(ContainerRegistryLoginServer) `
                   --registry-username $(ContainerRegistryUsername) `
-                  --registry-password $(ContainerRegistryPassword)
+                  --registry-password $(ContainerRegistryPassword) `
+                  --user-assigned $(ApiIdentity) `
+                  --env-vars ASPNETCORE_ENVIRONMENT=Test 
 
           - task: AzureCLI@2
             displayName: 'Get CA URL'
