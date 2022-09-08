@@ -13,8 +13,8 @@ trigger:
 variables:
   ContainerRegistryRepository: 'helloworld'
   Region: 'eastus2'
-  ContainerAppName: 'helloworld-dev-container-app-$(Build.BuildId)'
-  ResourceGroup: 'helloworld-dev-resource-group-$(Build.BuildId)'
+  ContainerAppName: 'helloworld-dev-ca-$(Build.BuildId)'
+  ResourceGroup: 'helloworld-dev-rg-$(Build.BuildId)'
   #Variables that are defined in the pipeline
   #ContainerRegistrySC: <Service Connection for the Container Registry>
   #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
