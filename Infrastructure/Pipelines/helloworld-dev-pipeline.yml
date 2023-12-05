@@ -13,7 +13,7 @@ trigger:
 
 variables:
   ContainerRegistryRepository: 'helloworld'
-  Region: 'eastus2'
+  Region: 'centralus'
   ContainerAppName: 'helloworld-dev-ca-$(Build.BuildId)'
   ResourceGroup: 'helloworld-dev-rg-$(Build.BuildId)'
   #Variables that are defined in the pipeline
