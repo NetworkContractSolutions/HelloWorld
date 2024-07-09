@@ -28,7 +28,7 @@ stages:
       parameters:
         AzureResourceManagerSC: '$(AzureResourceManagerSC)'
         OctopusApiKey: '$(OctopusApiKey)'
-        ProjectsToInclude:
+        ProjectToInclude:
           - 'Authentication API'
           - 'Authentication Service Host'
           - 'Authentication UI'
