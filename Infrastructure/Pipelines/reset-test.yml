@@ -29,12 +29,13 @@ stages:
         AzureResourceManagerSC: '$(AzureResourceManagerSC)'
         OctopusApiKey: '$(OctopusApiKey)'
         ProjectToInclude:
-          - 'Authentication API'
-          - 'Authentication Service Host'
-          - 'Authentication UI'
-          - 'Customer Administration'
-          - 'Customer Administration UI'
-          - 'Document Service v2'
+        - 'Authentication API'
+        - 'Authentication Service Host'
+        - 'Authentication UI'
+        - 'Customer Administration'
+        - 'Customer Administration UI'
+        - 'Document Service v2'
+        
 # - stage: Test
 #   displayName: Test stage
 #   dependsOn: Deploy
