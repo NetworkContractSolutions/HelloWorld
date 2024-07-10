@@ -1,0 +1,60 @@
+trigger: none
+pr: none # PR Trigger
+
+resources:
+  repositories:
+    - repository: EnvironmentAutomation
+      type: github
+      name: NetworkContractSolutions/EnvironmentAutomation
+      ref: refs/heads/main
+      endpoint: 'NContractsGithub'
+
+#variables that are defined in the pipeline
+  #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
+  #OctopusApiKey: 
+
+stages:
+- stage: EnvironmentTest
+  displayName: Environment Test
+  dependsOn: []
+  pool:
+    name: 'WindowsAgents'
+    demands: TestAgentSupport
+  jobs:
+  - job: EnvironmentTest
+    displayName: Environment Test
+    steps:
+    - template: 'Templates/Tasks/setup-testagent.yml@EnvironmentAutomation'
+      parameters:
+        AzureResourceManagerSC: '$(AzureResourceManagerSC)'
+        OctopusApiKey: '$(OctopusApiKey)'
+        ProjectToInclude: 'Authentication API,Authentication Service Host,Authentication UI,Customer Administration,Customer Adminstration UI,Document Service v2'
+
+# - stage: Test
+#   displayName: Test stage
+#   dependsOn: Deploy
+#   pool:
+#     name: 'WindowsAgents'
+#   jobs:
+#   - job: RunTests
+#     displayName: Run Tests
+#     variables:
+#       HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
+#     steps:
+#     - script: dotnet build --configuration Debug
+#       displayName: 'Build .NET 6 Application'
+
+#     - task: VSTest@2
+#       displayName: 'HelloWorld UI Tests'
+#       inputs:
+#         testAssemblyVer2: |
+#           **/*.IntegrationTests.dll
+#           !**\*TestAdapter.dll
+#           !**\obj\**
+#           !**\bin\**\ref\**
+#         uiTests: true
+#         searchFolder: '$(System.DefaultWorkingDirectory)'
+#         failOnMinTestsNotRun: true
+#         minimumExpectedTests: '1'
+#         vstestLocationMethod: 'location'
+#         vstestLocation: 'C:\Program Files (x86)\Microsoft Visual Studio\2022\TestAgent\Common7\IDE\Extensions\TestPlatform'

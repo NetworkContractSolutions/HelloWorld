@@ -4,12 +4,12 @@ parameters:
   type: boolean
   default: true
 
-trigger: 
-  paths:
-    include:
-    - 'Infrastructure/Pipelines/*'
-    - 'HelloWorld/*'
-    - 'HelloWorld.IntegrationTests/*'
+trigger: none
+#   paths:
+#     include:
+#     - 'Infrastructure/Pipelines/*'
+#     - 'HelloWorld/*'
+#     - 'HelloWorld.IntegrationTests/*'
 
 variables:
   ContainerRegistryRepository: 'helloworld'
