@@ -6,8 +6,8 @@ resources:
     - repository: EnvironmentAutomation
       type: github
       name: NetworkContractSolutions/EnvironmentAutomation
-      ref: refs/heads/projectsToInclude
-      endpoint: 'NetworkContractSolutions (3)'
+      ref: refs/heads/main
+      endpoint: 'NContractsGithub'
 
 #variables that are defined in the pipeline
   #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
