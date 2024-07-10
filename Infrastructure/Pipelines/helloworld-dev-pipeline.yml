@@ -4,7 +4,7 @@ parameters:
   type: boolean
   default: true
 
-# trigger: 
+trigger: none
 #   paths:
 #     include:
 #     - 'Infrastructure/Pipelines/*'
