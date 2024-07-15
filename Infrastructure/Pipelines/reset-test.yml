@@ -16,11 +16,11 @@ stages:
 - stage: EnvironmentTest
   displayName: Environment Test
   dependsOn: []
-  pool:
-    name: 'WindowsAgents'
-    demands: TestAgentSupport
   jobs:
   - job: EnvironmentTest
+    pool:
+      name: 'WindowsAgents'
+      demands: TestAgentSupport
     displayName: Environment Test
     steps:
     - template: 'Templates/Tasks/setup-testagent.yml@EnvironmentAutomation'
