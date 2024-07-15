@@ -6,7 +6,7 @@ resources:
     - repository: EnvironmentAutomation
       type: github
       name: NetworkContractSolutions/EnvironmentAutomation
-      ref: refs/heads/test-environments
+      ref: refs/heads/main
       endpoint: 'NContractsGithub'
 
 #variables that are defined in the pipeline
