@@ -6,12 +6,11 @@ resources:
     - repository: EnvironmentAutomation
       type: github
       name: NetworkContractSolutions/EnvironmentAutomation
-      ref: refs/heads/main
+      ref: refs/heads/test-environments
       endpoint: 'NContractsGithub'
 
 #variables that are defined in the pipeline
-  #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
-  #OctopusApiKey: 
+#AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
 
 stages:
 - stage: EnvironmentTest
@@ -27,7 +26,6 @@ stages:
     - template: 'Templates/Tasks/setup-testagent.yml@EnvironmentAutomation'
       parameters:
         AzureResourceManagerSC: '$(AzureResourceManagerSC)'
-        OctopusApiKey: '$(OctopusApiKey)'
         ProjectToInclude: 'Authentication API,Authentication Service Host,Authentication UI,Customer Administration,Customer Adminstration UI,Document Service v2'
 
     - task: AzureCLI@2
