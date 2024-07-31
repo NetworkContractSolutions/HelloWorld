@@ -23,7 +23,7 @@ stages:
       demands: TestAgentSupport
     displayName: Environment Test
     steps:
-    - template: 'Templates/Tasks/ResetTestAgent.yml@EnvironmentAutomation'
+    - template: 'Templates/Tasks/ResetTestAgent1.yml@EnvironmentAutomation'
       parameters:
         AzureResourceManagerSC: '$(AzureResourceManagerSC)'
         ProjectToInclude: 'Authentication API,Authentication Service Host,Authentication UI,Customer Administration,Customer Adminstration UI,Document Service v2'
