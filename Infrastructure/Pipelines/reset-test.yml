@@ -23,7 +23,7 @@ stages:
       demands: TestAgentSupport
     displayName: Environment Test
     steps:
-    - template: 'Templates/Tasks/setup-testagent.yml@EnvironmentAutomation'
+    - template: 'Templates/Tasks/ResetTestAgent1.yml@EnvironmentAutomation'
       parameters:
         AzureResourceManagerSC: '$(AzureResourceManagerSC)'
         ProjectToInclude: 'Authentication API,Authentication Service Host,Authentication UI,Customer Administration,Customer Adminstration UI,Document Service v2'
@@ -40,3 +40,4 @@ stages:
           Write-Host "TA_AuthUI: $env:TA_AuthUI"
           Write-Host "TA_AuthUI_Login: $env:TA_AuthUI_Login"
           Write-Host "TA_AuthAPI: $env:TA_AuthAPI"
+          Write-Host "TA_EnvironmentName: $env:TA_EnvironmentName"
