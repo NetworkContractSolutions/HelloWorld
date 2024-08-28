@@ -34,9 +34,10 @@ stages:
         scriptType: 'pscore'
         scriptLocation: 'inlineScript'
         inlineScript: | 
-          Write-Host "TA_VMName: $env:TA_VMName"
-          Write-Host "TA_ResourceGroup: $env:TA_ResourceGroup"
-          Write-Host "TA_AuthUI: $env:TA_AuthUI"
-          Write-Host "TA_AuthUI_Login: $env:TA_AuthUI_Login"
-          Write-Host "TA_AuthAPI: $env:TA_AuthAPI"
-          Write-Host "TA_EnvironmentName: $env:TA_EnvironmentName"
+          $envVars = Get-ChildItem Env:
+          $taEnvVars = $envVars | Where-Object { $_.Name -like 'TA_*' }
+
+          foreach ($var in $taEnvVars) {
+              Write-Host "$($var.Name): $($var.Value)"
+          }
+
