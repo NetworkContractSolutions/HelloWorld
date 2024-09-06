@@ -1,6 +1,14 @@
 trigger: none
 pr: none # PR Trigger
 
+resources:
+  repositories:
+    - repository: EnvironmentAutomation
+      type: github
+      name: NetworkContractSolutions/EnvironmentAutomation
+      ref: refs/heads/main
+      endpoint: NContractsGithub
+
 #variables that are defined in the pipeline
 #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
 
@@ -15,17 +23,15 @@ stages:
       demands: TestAgentSupport
     displayName: Environment Test
     steps:
-    - task: AzureCLI@2
-      displayName: 'Reset Test Agent'
-      inputs:
-        azureSubscription: '$(AzureResourceManagerSC)'
-        scriptType: 'pscore'
-        scriptLocation: 'inlineScript'
-        inlineScript: | 
-          . c:\temp\ta-commands.ps1 
-          
-          $projectsToInclude = @('Authentication API','Authentication Service Host','Authentication UI','Customer Administration','Customer Adminstration UI','Document Service v2')
-          Reset-TestAgent -projectsToInclude $projectsToInclude
+    - template: 'Templates/Tasks/TAStart1.yml@EnvironmentAutomation'
+      parameters:
+        AzureResourceManagerSC: '$(AzureResourceManagerSC)'
+
+    # - template: 'Templates/Tasks/TADeployRelease1.yml@EnvironmentAutomation'
+    #   parameters:
+    #     AzureResourceManagerSC: '$(AzureResourceManagerSC)'
+    #     ProjectName: "Data Explorer"
+    #     ReleaseVersion: "${{ parameters.releaseVersion }}"
 
     - task: AzureCLI@2
       displayName: 'Display Environment Variables'
@@ -41,3 +47,6 @@ stages:
               Write-Host "$($var.Name): $($var.Value)"
           }
 
+    - template: 'Templates/Tasks/TAReset1.yml@EnvironmentAutomation'
+      parameters:
+        AzureResourceManagerSC: '$(AzureResourceManagerSC)'
