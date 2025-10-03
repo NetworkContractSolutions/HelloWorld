@@ -66,6 +66,7 @@ stages:
         deploy:
           steps:
           - checkout: self
+            path: s/helloworld
 
           - task: AzureCLI@2
             displayName: 'View Sources Directory'
@@ -74,12 +75,14 @@ stages:
               scriptType: 'pscore'
               scriptLocation: 'inlineScript'
               inlineScript: | 
-                Write-Host "Sources Directory: ."
-                tree .
+                $repoPath = "$(Pipeline.Workspace)/s/helloworld"
+
+                Write-Host "Sources Directory: $repoPath"
+                tree $repoPath
                 Write-Host "Infrastructure Directory: ./Infrastructure"
-                tree ./Infrastructure
+                tree $repoPath/Infrastructure
                 Write-Host "Infrastructure/Pipelines Directory: ./Infrastructure/Pipelines"
-                tree ./Infrastructure/Pipelines
+                tree $repoPath/Infrastructure/Pipelines
 
           - task: AzureCLI@2
             displayName: 'Container App - Create'
@@ -88,9 +91,11 @@ stages:
               scriptType: 'pscore'
               scriptLocation: 'inlineScript'
               inlineScript: |
+                $repoPath = "$(Pipeline.Workspace)/s/helloworld"
+
                 az deployment group create `
                   --resource-group $(ResourceGroup) `
-                  --template-file ./Infrastructure/Pipelines/container-app.bicep `
+                  --template-file $repoPath/Infrastructure/Pipelines/container-app.bicep `
                   --parameters `
                     containerAppName='$(ContainerAppName)' `
                     location='$(Region)' `
