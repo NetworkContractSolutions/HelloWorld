@@ -76,7 +76,7 @@ stages:
               inlineScript: |
                 az deployment group create `
                   --resource-group $(ResourceGroup) `
-                  --template-file $(Build.SourcesDirectory)/Infrastructure/Pipelines/container-app.bicep `
+                  --template-file ./Infrastructure/Pipelines/container-app.bicep `
                   --parameters `
                     containerAppName='$(ContainerAppName)' `
                     location='$(Region)' `
