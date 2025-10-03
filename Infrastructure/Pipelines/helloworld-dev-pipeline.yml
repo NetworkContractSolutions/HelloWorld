@@ -74,7 +74,12 @@ stages:
               scriptType: 'pscore'
               scriptLocation: 'inlineScript'
               inlineScript: | 
-                tree
+                Write-Host "Sources Directory: ."
+                tree .
+                Write-Host "Infrastructure Directory: ./Infrastructure"
+                tree ./Infrastructure
+                Write-Host "Infrastructure/Pipelines Directory: ./Infrastructure/Pipelines"
+                tree ./Infrastructure/Pipelines
 
           - task: AzureCLI@2
             displayName: 'Container App - Create'
