@@ -35,6 +35,8 @@ stages:
   - job: Package
     displayName: Package job
     steps:
+    - checkout: self
+      
     - task: Docker@2
       displayName: Build and Push
       inputs:
@@ -85,7 +87,7 @@ stages:
               inlineScript: |
                 az deployment group create `
                   --resource-group $(ResourceGroup) `
-                  --template-file ./Infrastructure/Pipelines/container-app.bicep `
+                  --template-file $(Build.SourcesDirectory)/Infrastructure/Pipelines/container-app.bicep `
                   --parameters `
                     containerAppName='$(ContainerAppName)' `
                     location='$(Region)' `
