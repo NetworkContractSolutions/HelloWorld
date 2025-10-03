@@ -23,7 +23,7 @@ variables:
   ContainerRegistryRepository: 'helloworld'
   Region: 'centralus'
   ContainerAppName: 'helloworld-dev-ca-$(Build.BuildId)'
-  ResourceGroup: 'helloworld-dev-rg-$(Build.BuildId)'
+  ResourceGroup: 'rg-poc01-usc'
   #Variables that are defined in the pipeline
   #ContainerRegistrySC: <Service Connection for the Container Registry>
   #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
@@ -66,15 +66,6 @@ stages:
         deploy:
           steps:
           - checkout: self
-
-          - task: AzureCLI@2
-            displayName: 'Create Resource Group'
-            inputs:
-              azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'pscore'
-              scriptLocation: 'inlineScript'
-              inlineScript: | 
-                az group create -l $(Region) -n $(ResourceGroup)
 
           - task: AzureCLI@2
             displayName: 'Container App - Init Extension'
@@ -164,10 +155,10 @@ stages:
     steps:
     - checkout: none
     - task: AzureCLI@2
-      displayName: 'Delete Resource Group'
+      displayName: 'Delete Container App'
       inputs:
         azureSubscription: '$(AzureResourceManagerSC)'
         scriptType: 'pscore'
         scriptLocation: 'inlineScript'
-        inlineScript: | 
-          az group delete -n $(ResourceGroup) --yes --no-wait
+        inlineScript: |
+          az containerapp delete -n $(ContainerAppName) -g $(ResourceGroup) --yes --no-wait
