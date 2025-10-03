@@ -35,8 +35,6 @@ stages:
   - job: Package
     displayName: Package job
     steps:
-    - checkout: self
-      
     - task: Docker@2
       displayName: Build and Push
       inputs:
@@ -59,6 +57,8 @@ stages:
       runOnce:
         deploy:
           steps:
+          - checkout: self
+
           - task: AzureCLI@2
             displayName: 'Create Resource Group'
             inputs:
