@@ -69,22 +69,6 @@ stages:
             path: s/helloworld
 
           - task: AzureCLI@2
-            displayName: 'View Sources Directory'
-            inputs:
-              azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'pscore'
-              scriptLocation: 'inlineScript'
-              inlineScript: | 
-                $repoPath = "$(Pipeline.Workspace)/s/helloworld"
-
-                Write-Host "Sources Directory: $repoPath"
-                tree $repoPath
-                Write-Host "Infrastructure Directory: ./Infrastructure"
-                tree $repoPath/Infrastructure
-                Write-Host "Infrastructure/Pipelines Directory: ./Infrastructure/Pipelines"
-                tree $repoPath/Infrastructure/Pipelines
-
-          - task: AzureCLI@2
             displayName: 'Container App - Create'
             inputs:
               azureSubscription: '$(AzureResourceManagerSC)'
@@ -109,7 +93,7 @@ stages:
           - template: Templates/Tasks/InitializeCAE1.yml@infrastructure
             parameters:
               ServiceConnectionName: '$(AzureResourceManagerSC)'
-              EnvironmentName: 'POC01'
+              EnvironmentName: 'Poc01'
               BrowserFriendlyRouting: true
               ContainerAppFilter: '^$(ContainerAppName)$'
 
