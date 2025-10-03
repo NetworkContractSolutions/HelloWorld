@@ -82,17 +82,19 @@ stages:
               azureSubscription: '$(AzureResourceManagerSC)'
               scriptType: 'pscore'
               scriptLocation: 'inlineScript'
-              inlineScript: | 
-                az containerapp create `
-                  --name $(ContainerAppName) `
+              inlineScript: |
+                az deployment group create `
                   --resource-group $(ResourceGroup) `
-                  --environment $(ContainerAppEnvironment) `
-                  --image $(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId) `
-                  --target-port 80 `
-                  --ingress 'external' `
-                  --registry-server $(ContainerRegistryLoginServer) `
-                  --registry-username $(ContainerRegistryUsername) `
-                  --registry-password $(ContainerRegistryPassword)
+                  --template-file $(Build.SourcesDirectory)/Infrastructure/Pipelines/container-app.bicep `
+                  --parameters `
+                    containerAppName='$(ContainerAppName)' `
+                    location='$(Region)' `
+                    containerAppEnvironmentId='$(ContainerAppEnvironment)' `
+                    containerRegistryLoginServer='$(ContainerRegistryLoginServer)' `
+                    containerRegistryUsername='$(ContainerRegistryUsername)' `
+                    containerRegistryPassword='$(ContainerRegistryPassword)' `
+                    containerImage='$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)' `
+                    targetPort=80
 
           - task: AzureCLI@2
             displayName: 'Get CA URL'
@@ -101,11 +103,15 @@ stages:
               azureSubscription: '$(AzureResourceManagerSC)'
               scriptType: 'pscore'
               scriptLocation: 'inlineScript'
-              inlineScript: | 
-                $aca = az containerapp list -g $(ResourceGroup) | ConvertFrom-Json | Where-Object {$_.name -eq "$(ContainerAppName)"} | Select-Object -First 1
+              inlineScript: |
+                $deployment = az deployment group show `
+                  --resource-group $(ResourceGroup) `
+                  --name container-app.bicep `
+                  --query properties.outputs.containerAppUrl.value `
+                  --output tsv
 
-                $url = "https://" + $aca.properties.configuration.ingress.fqdn 
-                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$url"
+                Write-Host "Container App URL: $deployment"
+                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$deployment"
       
 - stage: Test
   displayName: Test stage
