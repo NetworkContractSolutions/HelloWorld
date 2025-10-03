@@ -68,16 +68,6 @@ stages:
           - checkout: self
 
           - task: AzureCLI@2
-            displayName: 'Container App - Init Extension'
-            inputs:
-              azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'pscore'
-              scriptLocation: 'inlineScript'
-              inlineScript: | 
-                az extension add --name containerapp
-                az provider register --namespace Microsoft.App
-
-          - task: AzureCLI@2
             displayName: 'Container App - Create'
             inputs:
               azureSubscription: '$(AzureResourceManagerSC)'
