@@ -17,7 +17,7 @@ resources:
     type: github
     name: NetworkContractSolutions/Ncontracts.Infrastructure
     endpoint: NContractsGithub
-    # ref: single-proddeploys
+    ref: poc01-cae-agw
 
 variables:
   ContainerRegistryRepository: 'helloworld'
