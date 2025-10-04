@@ -96,6 +96,7 @@ stages:
               EnvironmentName: 'Poc01'
               BrowserFriendlyRouting: true
               ContainerAppFilter: '^$(ContainerAppName)$'
+              InternalOnly: true
 
           - task: AzureCLI@2
             displayName: 'Get CA URL'
