@@ -4,53 +4,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an ASP.NET Core 8.0 MVC web application demonstrating Kubernetes deployment using Helm charts, with NGINX ingress controller and self-signed SSL certificates. The application is designed to run in a local Docker Desktop Kubernetes cluster.
+This is an ASP.NET Core 8.0 MVC web application deployed to Azure Container Apps via Azure DevOps pipelines.
 
 ## Technology Stack
 
 - **Application**: ASP.NET Core 8.0 MVC (C#)
 - **Container Runtime**: Docker
-- **Orchestration**: Kubernetes (Docker Desktop)
-- **Package Manager**: Helm 3
+- **Cloud Platform**: Azure Container Apps
 - **Testing**: NUnit with Selenium WebDriver (Chrome)
-- **CI/CD**: Azure DevOps Pipelines (Container Apps deployment)
+- **CI/CD**: Azure DevOps Pipelines
 
 ## Common Commands
 
-### Local Development & Deployment
+### Local Development
 
-**Deploy entire application locally:**
+**Build Docker image locally:**
 ```powershell
-.\Infrastructure\DeployAll.ps1
-```
-This script:
-1. Deploys self-signed SSL certificate (requires admin)
-2. Deploys NGINX ingress controller
-3. Builds Docker image
-4. Creates Kubernetes namespace `example-local`
-5. Deploys application via Helm
-6. Opens browser to https://helloworld.localtest.me
-
-**Build Docker image:**
-```powershell
-cd HelloWorld/Infrastructure
-docker build -t example/helloworld -f ..\Dockerfile .. --no-cache
-```
-
-**Deploy only the application (after one-time setup):**
-```powershell
-cd HelloWorld/Infrastructure
-.\Deploy.ps1
-```
-
-**Teardown local environment:**
-```powershell
-.\Infrastructure\TeardownAll.ps1
+cd HelloWorld
+docker build -t example/helloworld -f Dockerfile . --no-cache
 ```
 
 ### Testing
 
-**Run integration tests locally:**
+**Run integration tests:**
 ```bash
 dotnet build --configuration Debug
 dotnet test HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj
@@ -61,49 +37,23 @@ dotnet test HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj
 dotnet test HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --filter "FullyQualifiedName~NavigateToWebsiteRoot"
 ```
 
-**Note**: Integration tests require ChromeDriver and expect the application running at https://helloworld.localtest.me (or override via `HomePageUrl` environment variable).
+**Note**: Integration tests require ChromeDriver. Set the `HomePageUrl` environment variable to point to your Container App URL.
 
-### Kubernetes Operations
+### Azure Container Apps Operations
 
-**View all resources:**
+**View Container Apps:**
 ```bash
-kubectl get all -o wide -n example-local
+az containerapp list --resource-group <resource-group-name> -o table
 ```
 
-**View pods:**
+**View Container App logs:**
 ```bash
-kubectl get pod -n example-local
+az containerapp logs show --name <container-app-name> --resource-group <resource-group-name> --follow
 ```
 
-**View logs:**
+**Get Container App URL:**
 ```bash
-kubectl logs <pod-name> -n example-local
-```
-
-**Describe pod:**
-```bash
-kubectl describe pod/<pod-name> -n example-local
-```
-
-**Execute commands in pod:**
-```bash
-kubectl exec <pod-name> -n example-local -- env
-kubectl exec <pod-name> -n example-local -it -- /bin/bash
-```
-
-**View ingress:**
-```bash
-kubectl get ing -n example-local
-kubectl describe ing helloworld-ingress -n example-local
-```
-
-**Helm operations:**
-```bash
-# List releases
-helm list -n example-local -a
-
-# Rollback to revision 1
-helm rollback helloworld 1 -n example-local
+az containerapp show --name <container-app-name> --resource-group <resource-group-name> --query properties.configuration.ingress.fqdn -o tsv
 ```
 
 ## Architecture
@@ -116,31 +66,17 @@ HelloWorld/                          # Main ASP.NET Core MVC application
 ├── Models/                          # View Models (ErrorViewModel)
 ├── Views/                           # Razor views
 ├── wwwroot/                         # Static files (CSS, JS, libraries)
-├── charts/helloworld/               # Helm chart templates
-│   ├── templates/                   # K8s manifests (deployment, service, ingress)
-│   ├── Chart.yaml                   # Helm chart metadata
-│   └── values.yaml                  # Default Helm values
-├── Infrastructure/                  # App-specific deployment scripts
-│   ├── Deploy.ps1                   # Deploy app to K8s
-│   └── Teardown.ps1                 # Remove app from K8s
 ├── Dockerfile                       # Multi-stage build for container
 └── HelloWorld.csproj                # Project file
 
 HelloWorld.IntegrationTests/         # Selenium UI tests
 └── HomeTest.cs                      # Page object pattern tests
 
-Infrastructure/                      # Shared infrastructure scripts
-├── OneTimeScripts/                  # One-time setup (SSL cert, NGINX)
-│   ├── DeploySelfSigned.ps1        # Generate & install self-signed cert
-│   └── DeployNginx.ps1             # Install NGINX ingress controller
-├── Pipelines/                       # Azure DevOps pipeline definitions
-│   ├── helloworld-dev-pipeline.yml # Build, deploy to Container Apps, test, teardown
-│   └── reset-test.yml              # Pipeline reset pattern
-├── DeployAll.ps1                    # Main deployment orchestrator
-└── TeardownAll.ps1                  # Complete environment cleanup
-
-Documentation/
-└── SampleCommands.ps1               # Reference kubectl/helm commands
+Infrastructure/
+└── Pipelines/                       # Azure DevOps pipeline definitions
+    ├── helloworld-dev-pipeline.yml  # Build, deploy to Container Apps, test, teardown
+    ├── container-app.bicep          # Bicep template for Container App
+    └── reset-test.yml               # Pipeline reset pattern
 ```
 
 ### Application Flow
@@ -153,33 +89,19 @@ Documentation/
 ### Deployment Flow
 
 1. **Docker Build**: Multi-stage Dockerfile builds application in SDK container, publishes to runtime container
-2. **Helm Package**: Charts packaged from [HelloWorld/charts/helloworld/](HelloWorld/charts/helloworld/)
-3. **Kubernetes Resources**:
-   - **Deployment**: Creates pods from Docker image `example/helloworld:latest`
-   - **Service**: ClusterIP service on port 80
-   - **Ingress**: NGINX ingress routes helloworld.localtest.me to service, terminates TLS using secret `helloworld-tls-secret`
-4. **Namespace**: Resources deployed to `example-local` namespace
-
-### Helm Chart Configuration
-
-Located in [HelloWorld/charts/helloworld/values.yaml](HelloWorld/charts/helloworld/values.yaml):
-
-- **Image**: `repository: helloworld`, `tag: stable`, `pullPolicy: IfNotPresent`
-- **Replicas**: 1 by default
-- **Service**: ClusterIP on port 80
-- **Ingress**: Configured via `--set` flags in Deploy.ps1 with DNS and TLS settings
-- **Probes**: Disabled by default (`probes.enabled: false`)
-
-Override values during deployment via `--set` flags or custom values file.
+2. **Container Registry**: Image pushed to Azure Container Registry
+3. **Container App**: Deployed using Bicep template with ingress configuration
+4. **Testing**: Integration tests run against deployed Container App
+5. **Teardown**: Optional cleanup of Container App resources
 
 ## Azure DevOps Pipeline
 
-[Infrastructure/Pipelines/helloworld-dev-pipeline.yml](Infrastructure/Pipelines/helloworld-dev-pipeline.yml) defines:
+[Infrastructure/Pipelines/helloworld-dev-pipeline.yml](Infrastructure/Pipelines/helloworld-dev-pipeline.yml) defines the Azure Container Apps deployment pipeline:
 
 1. **Build Stage**: Builds and pushes Docker image to Azure Container Registry
-2. **Deploy Stage**: Creates Azure Container App with ingress
-3. **Test Stage**: Runs integration tests against deployed Container App
-4. **Teardown Stage**: Optionally deletes resource group (controlled by `teardown` parameter)
+2. **Deploy Stage**: Creates Azure Container App with ingress using Bicep template
+3. **Test Stage**: Runs integration tests against deployed Container App URL
+4. **Teardown Stage**: Optionally deletes Container App (controlled by `teardown` parameter)
 
 **Required Pipeline Variables:**
 - `ContainerRegistrySC`: Service connection for ACR
@@ -195,7 +117,7 @@ Tests in [HelloWorld.IntegrationTests/HomeTest.cs](HelloWorld.IntegrationTests/H
 - **Framework**: NUnit
 - **Browser Automation**: Selenium WebDriver with ChromeDriver
 - **Pattern**: Page Object pattern (HelloWorldHome class)
-- **Configuration**: Base URL defaults to https://helloworld.localtest.me, override with `HomePageUrl` environment variable
+- **Configuration**: `HomePageUrl` environment variable is automatically set in Azure DevOps pipeline to the deployed Container App URL
 
 Test scenarios:
 - Navigate to root and verify home page
@@ -204,16 +126,15 @@ Test scenarios:
 
 ## Key Dependencies
 
-- Docker Desktop with Kubernetes enabled
-- Helm 3.x
-- OpenSSL (included with Git for Windows)
+- Azure subscription with Container Apps resources
+- Azure Container Registry
 - .NET 8.0 SDK
+- Docker
 - Chrome browser (for integration tests)
 
 ## Important Notes
 
-- Self-signed certificate generation requires PowerShell admin privileges
-- Certificate and private key stored in `%USERPROFILE%\temp\HelloWorld\`
-- If certificate validation fails, run: `kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission`
+- Container Apps automatically handle SSL/TLS certificates and ingress
+- Integration tests retrieve the Container App URL dynamically from the deployment
+- Teardown stage can be controlled via pipeline parameter to preserve or delete resources
 - Application uses MVC with runtime Razor compilation enabled for development
-- Default namespace for local deployment: `example-local`

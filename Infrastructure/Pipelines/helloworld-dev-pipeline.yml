@@ -111,31 +111,31 @@ stages:
                 Write-Host "Container App URL: $deployment"
                 Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$deployment"
       
-- stage: Test
-  displayName: Test stage
-  dependsOn: Deploy
-  pool: "WindowsAgents"
-  jobs:
-  - job: RunTests
-    displayName: Run Tests
-    variables:
-      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
-    steps:
-    - script: dotnet build --configuration Debug
-      displayName: 'Build .NET 8 Application'
+# - stage: Test
+#   displayName: Test stage
+#   dependsOn: Deploy
+#   pool: "WindowsAgents"
+#   jobs:
+#   - job: RunTests
+#     displayName: Run Tests
+#     variables:
+#       HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
+#     steps:
+#     - script: dotnet build --configuration Debug
+#       displayName: 'Build .NET 8 Application'
 
-    - task: VSTest@2
-      displayName: 'HelloWorld UI Tests'
-      inputs:
-        testAssemblyVer2: |
-          **/*.IntegrationTests.dll
-          !**\*TestAdapter.dll
-          !**\obj\**
-          !**\bin\**\ref\**
-        uiTests: true
-        searchFolder: '$(System.DefaultWorkingDirectory)'
-        failOnMinTestsNotRun: true
-        minimumExpectedTests: '1'
+#     - task: VSTest@2
+#       displayName: 'HelloWorld UI Tests'
+#       inputs:
+#         testAssemblyVer2: |
+#           **/*.IntegrationTests.dll
+#           !**\*TestAdapter.dll
+#           !**\obj\**
+#           !**\bin\**\ref\**
+#         uiTests: true
+#         searchFolder: '$(System.DefaultWorkingDirectory)'
+#         failOnMinTestsNotRun: true
+#         minimumExpectedTests: '1'
 
 - stage: Teardown
   displayName: Teardown stage

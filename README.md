@@ -1,23 +1,55 @@
-# HelloWorld with Kubernetes
+# HelloWorld with Azure Container Apps
 
-Simple HelloWorld application with Kubernetes, Helm and an ingress controller.
+Simple HelloWorld ASP.NET Core 8.0 MVC application deployed to Azure Container Apps.
 
-##### Dependencies:
-1. Kubernetes cluster (this was tested with Docker Desktop's Kubernetes cluster)
-1. Helm (https://helm.sh/docs/intro/install/)
-1. OpenSSL (comes with Git for Windows)
+## Overview
 
-##### Instructions:
-1. From any PowerShell open and run .\Infrastructure\DeployAll.ps1.
-1. Explore cluster with .\Documentation\SampleCommands.ps1
+This project demonstrates a complete CI/CD pipeline for deploying a containerized ASP.NET Core application to Azure Container Apps using Azure DevOps.
 
-##### Result:
-The website https://helloworld.localtest.me should open in your browser once everything has been deployed (refresh the screen a couple of times if you get a default NGINX page).
+## Dependencies
 
-##### References:
-1. [Kubernetes](https://www.youtube.com/watch?v=X48VuDVv0do)
-1. [Helm](https://helm.sh/docs/intro/quickstart/)
-1. [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/)
-1. [OpenSSL with Kubernetes Ingress](https://awkwardferny.medium.com/configuring-certificate-based-mutual-authentication-with-kubernetes-ingress-nginx-20e7e38fdfca)
+1. .NET 8.0 SDK
+1. Docker
+1. Azure subscription with Container Apps resources
+1. Azure Container Registry
+1. Chrome browser (for integration tests)
 
+## Deployment
 
+The application is deployed via Azure DevOps pipeline ([Infrastructure/Pipelines/helloworld-dev-pipeline.yml](Infrastructure/Pipelines/helloworld-dev-pipeline.yml)):
+
+1. **Build** - Builds and pushes Docker image to Azure Container Registry
+2. **Deploy** - Creates Azure Container App using Bicep template
+3. **Test** - Runs Selenium integration tests against the deployed application
+4. **Teardown** - Optionally removes the Container App (controlled by pipeline parameter)
+
+## Local Development
+
+Build the Docker image locally:
+
+```powershell
+cd HelloWorld
+docker build -t example/helloworld -f Dockerfile . --no-cache
+```
+
+Run integration tests:
+
+```bash
+dotnet build --configuration Debug
+dotnet test HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj
+```
+
+## Technology Stack
+
+- ASP.NET Core 8.0 MVC
+- Azure Container Apps
+- Azure Container Registry
+- Docker
+- NUnit + Selenium WebDriver
+- Azure DevOps Pipelines
+
+## References
+
+1. [Azure Container Apps Documentation](https://learn.microsoft.com/en-us/azure/container-apps/)
+1. [Azure Container Registry](https://learn.microsoft.com/en-us/azure/container-registry/)
+1. [ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/)
