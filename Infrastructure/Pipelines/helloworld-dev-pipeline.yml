@@ -161,4 +161,4 @@ stages:
       parameters:
         ServiceConnectionName: '$(AzureResourceManagerSC)'
         EnvironmentName: 'Poc01'
-        ContainerAppFilter: '^$(ContainerAppName)$'
+        ContainerAppName: '$(ContainerAppName)'
