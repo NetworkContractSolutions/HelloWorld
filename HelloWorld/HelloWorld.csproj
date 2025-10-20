@@ -10,7 +10,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="8.0.11" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.18.1" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Kubernetes.Tools.Targets" Version="1.1.0" />
-    <PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="141.0.7390.5400" />
+    <PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="141.0.7390.7800" />
   </ItemGroup>
 
 </Project>
