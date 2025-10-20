@@ -147,7 +147,6 @@ stages:
   - job: Teardown
     displayName: Teardown job
     steps:
-    - checkout: none
     - task: AzureCLI@2
       displayName: 'Delete Container App'
       inputs:
