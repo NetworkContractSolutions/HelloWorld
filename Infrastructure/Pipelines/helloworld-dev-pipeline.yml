@@ -139,7 +139,7 @@ stages:
 
 - stage: Teardown
   displayName: Teardown stage
-  dependsOn: Test
+  dependsOn: Build #Test
   condition: eq('${{ parameters.teardown }}', true)
   pool:
     vmImage: 'ubuntu-latest'
