@@ -1,4 +1,8 @@
 parameters:
+- name: EnvironmentName
+  displayName: Environment Name (Feature01, Feature02, POC01, Prod, Production)
+  type: string
+  default: 'poc01'
 - name: teardown
   displayName: Teardown Environment
   type: boolean
@@ -23,7 +27,8 @@ variables:
   ContainerRegistryRepository: 'helloworld'
   Region: 'centralus'
   ContainerAppName: 'helloworld-dev-ca-$(Build.BuildId)'
-  ResourceGroup: 'rg-poc01-usc'
+  EnvironmentName: '${{ lower(parameters.EnvironmentName) }}'
+  ResourceGroup: 'rg-${{ lower(parameters.EnvironmentName) }}-usc'
   #Variables that are defined in the pipeline
   #ContainerRegistrySC: <Service Connection for the Container Registry>
   #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
@@ -93,7 +98,7 @@ stages:
           - template: Templates/Tasks/InitializeCAE1.yml@infrastructure
             parameters:
               ServiceConnectionName: '$(AzureResourceManagerSC)'
-              EnvironmentName: 'Poc01'
+              EnvironmentName: '$(EnvironmentName)'
               BrowserFriendlyRouting: true
               ContainerAppFilter: '^$(ContainerAppName)$'
               InternalOnly: true
@@ -106,9 +111,12 @@ stages:
               scriptType: 'pscore'
               scriptLocation: 'inlineScript'
               inlineScript: |
-                $deployment = '$(ContainerAppName)-poc01.dev.ncontracts.com'
+                $aca = az containerapp list -g $(ResourceGroup) | ConvertFrom-Json | Where-Object {$_.name -eq "$(ContainerAppName)"} | Select-Object -First 1
+                $url = "https://" + $aca.properties.configuration.ingress.fqdn 
+                Write-Host "##vso[task.setvariable variable=IngressContainerAppUrl;isOutput=true]$url"
 
-                Write-Host "Container App URL: $deployment"
+                $deployment = '$(ContainerAppName)-$(EnvironmentName).dev.ncontracts.com'
+                Write-Host "DevNcontracts Container App URL: $deployment"
                 Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$deployment"
       
 # - stage: Test
@@ -150,7 +158,7 @@ stages:
     - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
       parameters:
         ServiceConnectionName: '$(AzureResourceManagerSC)'
-        EnvironmentName: 'Poc01'
+        EnvironmentName: '$(EnvironmentName)'
         ContainerAppName: '$(ContainerAppName)'
 
     - task: AzureCLI@2
