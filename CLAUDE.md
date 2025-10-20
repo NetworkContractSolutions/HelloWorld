@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an ASP.NET Core 6.0 MVC web application demonstrating Kubernetes deployment using Helm charts, with NGINX ingress controller and self-signed SSL certificates. The application is designed to run in a local Docker Desktop Kubernetes cluster.
+This is an ASP.NET Core 8.0 MVC web application demonstrating Kubernetes deployment using Helm charts, with NGINX ingress controller and self-signed SSL certificates. The application is designed to run in a local Docker Desktop Kubernetes cluster.
 
 ## Technology Stack
 
-- **Application**: ASP.NET Core 6.0 MVC (C#)
+- **Application**: ASP.NET Core 8.0 MVC (C#)
 - **Container Runtime**: Docker
 - **Orchestration**: Kubernetes (Docker Desktop)
 - **Package Manager**: Helm 3
@@ -207,7 +207,7 @@ Test scenarios:
 - Docker Desktop with Kubernetes enabled
 - Helm 3.x
 - OpenSSL (included with Git for Windows)
-- .NET 6.0 SDK
+- .NET 8.0 SDK
 - Chrome browser (for integration tests)
 
 ## Important Notes

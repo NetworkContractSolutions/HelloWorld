@@ -28,8 +28,8 @@ namespace HelloWorld.IntegrationTests
                 driver.Url = _homePageUrl;
                 driver.Navigate();
                 var home = new HelloWorldHome(driver);
-                Assert.IsTrue(home.IsOnHomePage(_homePageUrl), "Home page should be displayed.");
-                Assert.IsTrue(home.PageHasHomeTitle(), "Home page should be displayed.");
+                Assert.Equals(home.IsOnHomePage(_homePageUrl), "Home page should be displayed.");
+                Assert.Equals(home.PageHasHomeTitle(), "Home page should be displayed.");
             }
         }
 
@@ -42,7 +42,7 @@ namespace HelloWorld.IntegrationTests
                 driver.Navigate();
                 var home = new HelloWorldHome(driver);
                 var privacy = home.ClickPrivacyNav();
-                Assert.IsTrue(privacy.IsOnPrivacyPage(), "Privacy page should be displayed.");
+                Assert.Equals(privacy.IsOnPrivacyPage(), "Privacy page should be displayed.");
             }
         }
         [Test]
@@ -55,7 +55,7 @@ namespace HelloWorld.IntegrationTests
                 var home = new HelloWorldHome(driver);
                 home.ClickPrivacyNav();
                 var privacy = home.ClickBrand();
-                Assert.IsTrue(home.IsOnHomePage(_homePageUrl), "Home page should be displayed.");
+                Assert.Equals(home.IsOnHomePage(_homePageUrl), "Home page should be displayed.");
             }
         }
     }
