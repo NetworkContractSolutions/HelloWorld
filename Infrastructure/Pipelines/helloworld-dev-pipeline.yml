@@ -147,6 +147,12 @@ stages:
   - job: Teardown
     displayName: Teardown job
     steps:
+    - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
+      parameters:
+        ServiceConnectionName: '$(AzureResourceManagerSC)'
+        EnvironmentName: 'Poc01'
+        ContainerAppName: '$(ContainerAppName)'
+
     - task: AzureCLI@2
       displayName: 'Delete Container App'
       inputs:
@@ -155,9 +161,3 @@ stages:
         scriptLocation: 'inlineScript'
         inlineScript: |
           az containerapp delete -n $(ContainerAppName) -g $(ResourceGroup) --yes --no-wait
-
-    - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
-      parameters:
-        ServiceConnectionName: '$(AzureResourceManagerSC)'
-        EnvironmentName: 'Poc01'
-        ContainerAppName: '$(ContainerAppName)'
