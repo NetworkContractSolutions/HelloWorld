@@ -156,3 +156,9 @@ stages:
         scriptLocation: 'inlineScript'
         inlineScript: |
           az containerapp delete -n $(ContainerAppName) -g $(ResourceGroup) --yes --no-wait
+
+    - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
+      parameters:
+        ServiceConnectionName: '$(AzureResourceManagerSC)'
+        EnvironmentName: 'Poc01'
+        ContainerAppFilter: '^$(ContainerAppName)$'
