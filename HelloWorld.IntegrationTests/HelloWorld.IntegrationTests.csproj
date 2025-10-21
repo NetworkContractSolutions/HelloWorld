@@ -10,8 +10,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="NUnit" Version="4.2.2" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
-    <PackageReference Include="OpenQA.Selenium.Chrome.ChromeDriverExtensions" Version="1.2.0" />
-    <PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="141.0.7390.7800" />
+    <PackageReference Include="Microsoft.Playwright.NUnit" Version="1.49.0" />
   </ItemGroup>
 
 </Project>

@@ -11,7 +11,7 @@ This is an ASP.NET Core 8.0 MVC web application deployed to Azure Container Apps
 - **Application**: ASP.NET Core 8.0 MVC (C#)
 - **Container Runtime**: Docker
 - **Cloud Platform**: Azure Container Apps
-- **Testing**: NUnit with Selenium WebDriver (Chrome)
+- **Testing**: NUnit with Playwright
 - **CI/CD**: Azure DevOps Pipelines
 
 ## Common Commands
@@ -26,6 +26,11 @@ docker build -t example/helloworld -f Dockerfile . --no-cache
 
 ### Testing
 
+**Install Playwright browsers (first time only):**
+```bash
+pwsh bin/Debug/net8.0/playwright.ps1 install
+```
+
 **Run integration tests:**
 ```bash
 dotnet build --configuration Debug
@@ -37,7 +42,7 @@ dotnet test HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj
 dotnet test HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --filter "FullyQualifiedName~NavigateToWebsiteRoot"
 ```
 
-**Note**: Integration tests require ChromeDriver. Set the `HomePageUrl` environment variable to point to your Container App URL.
+**Note**: Integration tests require Playwright browsers to be installed. Set the `HomePageUrl` environment variable to point to your Container App URL.
 
 ### Azure Container Apps Operations
 
@@ -69,7 +74,7 @@ HelloWorld/                          # Main ASP.NET Core MVC application
 ├── Dockerfile                       # Multi-stage build for container
 └── HelloWorld.csproj                # Project file
 
-HelloWorld.IntegrationTests/         # Selenium UI tests
+HelloWorld.IntegrationTests/         # Playwright UI tests
 └── HomeTest.cs                      # Page object pattern tests
 
 Infrastructure/
@@ -114,8 +119,8 @@ Infrastructure/
 
 Tests in [HelloWorld.IntegrationTests/HomeTest.cs](HelloWorld.IntegrationTests/HomeTest.cs) use:
 
-- **Framework**: NUnit
-- **Browser Automation**: Selenium WebDriver with ChromeDriver
+- **Framework**: NUnit with Playwright
+- **Browser Automation**: Microsoft Playwright
 - **Pattern**: Page Object pattern (HelloWorldHome class)
 - **Configuration**: `HomePageUrl` environment variable is automatically set in Azure DevOps pipeline to the deployed Container App URL
 
@@ -124,13 +129,15 @@ Test scenarios:
 - Navigate to Privacy page via nav link
 - Navigate back to Home via brand link
 
+**Note**: Playwright browsers must be installed before running tests. The pipeline automatically installs them during the test stage.
+
 ## Key Dependencies
 
 - Azure subscription with Container Apps resources
 - Azure Container Registry
 - .NET 8.0 SDK
 - Docker
-- Chrome browser (for integration tests)
+- Playwright browsers (for integration tests)
 
 ## Important Notes
 
