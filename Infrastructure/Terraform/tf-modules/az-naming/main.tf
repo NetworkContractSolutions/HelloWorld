@@ -12,12 +12,12 @@ resource "null_resource" "short_label" {
 
 resource "null_resource" "label" {
   triggers = {
-    name                 = lower(join(var.delimiter, compact(concat(tolist([var.environment, null_resource.short_label.triggers.short_location, var.alteration])))))
+    name                 = lower(join(var.delimiter, compact(concat(tolist([var.function, var.environment, null_resource.short_label.triggers.short_location, var.alteration])))))
     merged_name          = lower(join("", compact(concat(tolist([var.environment, null_resource.short_label.triggers.short_location, var.alteration])))))
     short_name           = lower(join("", compact(concat(tolist([null_resource.short_label.triggers.short_environment, null_resource.short_label.triggers.short_location, var.alteration])))))
-    function_name        = lower(join(var.delimiter, compact(concat(tolist([var.environment, var.function, null_resource.short_label.triggers.short_location, var.alteration])))))
-    merged_function_name = lower(join("", compact(concat(tolist([var.environment, var.function, null_resource.short_label.triggers.short_location, var.alteration])))))
-    short_function_name  = lower(join("", compact(concat(tolist([null_resource.short_label.triggers.short_environment, null_resource.short_label.triggers.short_function, null_resource.short_label.triggers.short_location, var.alteration])))))
+    function_name        = lower(join(var.delimiter, compact(concat(tolist([var.function, var.environment, null_resource.short_label.triggers.short_location, var.alteration])))))
+    merged_function_name = lower(join("", compact(concat(tolist([var.function, var.environment, null_resource.short_label.triggers.short_location, var.alteration])))))
+    short_function_name  = lower(join("", compact(concat(tolist([null_resource.short_label.triggers.short_function, null_resource.short_label.triggers.short_environment, null_resource.short_label.triggers.short_location, var.alteration])))))
     function             = lower(format("%v", var.function))
     environment          = lower(format("%v", var.environment))
     alteration           = lower(format("%v", var.alteration))
