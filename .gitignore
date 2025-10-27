@@ -301,7 +301,7 @@ node_modules/
 *.dsw
 *.dsp
 
-# Visual Studio 6 technical files 
+# Visual Studio 6 technical files
 *.ncb
 *.aps
 
@@ -396,3 +396,13 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# AI Agents for Visual Studio
+copilot-instructions.md
+
+# Terraform local files
+*.tstate
+*.tstate.backup
+.terraform/
+.terraform.lock.hcl
+tf_run_local.sh
