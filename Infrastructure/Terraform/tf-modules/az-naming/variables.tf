@@ -69,7 +69,8 @@ variable "environment_list" {
     "nonprod",
     "prod",
     "sandbox",
-    "hub"
+    "hub",
+    "poc01"
   ]
 }
 
@@ -83,5 +84,6 @@ variable "short_environment_names" {
     "prod"    = "prd"
     "sandbox" = "sbx"
     "hub"     = "hub"
+    "poc01"   = "p01"
   }
 }

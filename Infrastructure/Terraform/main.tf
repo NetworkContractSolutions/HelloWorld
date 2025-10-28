@@ -7,26 +7,20 @@ module "naming" {
   tags        = local.tags
 }
 
-module "resource_group" {
-  source              = "./tf-modules/az-resource-group"
-  resource_group_name = lower(join("-", ["rg", module.naming.function_name, "00"]))
-  location            = var.location
-  tags                = local.tags
+data "azurerm_resource_group" "default" {
+  name = var.existing_resource_group_name
 }
 
-module "container_app_env" {
-  source                 = "./tf-modules/az-container-app-env"
-  container_app_env_name = lower(join("-", ["cappenv", module.naming.function_name, "00"]))
-  resource_group_name    = module.resource_group.resource_group_name
-  location               = module.resource_group.location
-  tags                   = module.resource_group.tags
+data "azurerm_container_app_environment" "default" {
+  name                = var.existing_container_app_environment_name
+  resource_group_name = data.azurerm_resource_group.default.name
 }
 
 module "container_app" {
   source                          = "./tf-modules/az-container-app"
-  container_app_name              = lower(join("-", ["capp", module.naming.function_name, "00"]))
-  resource_group_name             = module.resource_group.resource_group_name
-  container_app_environment_id    = module.container_app_env.app_container_env_id
+  container_app_name              = lower(join("-", ["ca", module.naming.function_name, "00"]))
+  resource_group_name             = data.azurerm_resource_group.default.name
+  container_app_environment_id    = data.azurerm_container_app_environment.default.id
   revision_mode                   = "Single"
   ingress_external_enabled        = true
   target_port                     = 80

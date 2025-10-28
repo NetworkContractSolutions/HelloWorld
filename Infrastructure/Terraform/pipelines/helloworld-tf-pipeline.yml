@@ -1,0 +1,133 @@
+parameters:
+- name: EnvironmentName
+  displayName: Environment Name
+  type: string
+  values:
+  - POC01
+  - Feature01
+  - Feature02
+  - Prod
+- name: teardown
+  displayName: Teardown Environment
+  type: boolean
+  default: true
+
+variables:
+  ContainerRegistryRepository: 'helloworld'
+  Location: 'centralus'
+  ContainerAppName: 'helloworld-tf-ca-$(Build.BuildId)'
+  EnvironmentName: '${{ lower(parameters.EnvironmentName) }}'
+  ResourceGroup: 'rg-${{ lower(parameters.EnvironmentName) }}-usc'
+
+resources:
+  repositories:
+  - repository: infrastructure
+    type: github
+    name: NetworkContractSolutions/Ncontracts.Infrastructure
+    endpoint: NContractsGithub
+    ref: poc01-cae-agw
+
+trigger: none
+
+stages:
+- stage: Build
+  displayName: Build stage
+  pool:
+    vmImage: 'ubuntu-latest'
+  jobs:
+  - job: Package
+    displayName: Package job
+    steps:
+    - task: Docker@2
+      displayName: Build and Push
+      inputs:
+        command: buildAndPush
+        containerRegistry: '$(ContainerRegistrySC)'
+        repository: '$(ContainerRegistryRepository)'
+        tags: $(Build.BuildId)
+        Dockerfile: '**/HelloWorld/Dockerfile'
+
+- stage: Terraform Plan
+  displayName: Terraform Plan
+  dependsOn: Build
+  pool:
+    vmImage: 'ubuntu-latest'
+  jobs:
+  - job: TerraformPlan
+    displayName: Terraform Plan job
+    steps:
+    - checkout: infrastructure
+      persistCredentials: true
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: latest
+    - script: |
+        cd Infrastructure/Terraform
+        terraform init
+        terraform plan \
+          -var="environment=$(EnvironmentName)" \
+          -var="location=$(Location)" \
+          -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
+          -var="container_registry_username=$(ContainerRegistryUsername)" \
+          -var="container_registry_password=$(ContainerRegistryPassword)" \
+          -var="container_image=$(ContainerImage)" \
+          -out=tfplan
+      displayName: 'Terraform Init and Plan'
+
+- stage: Terraform Apply
+  displayName: Terraform Apply
+  dependsOn: Terraform Plan
+  condition: and(succeeded(), eq('${{ parameters.teardown }}', false))
+  pool:
+    vmImage: 'ubuntu-latest'
+  environment: 'terraform-approval'
+  jobs:
+  - job: TerraformApply
+    displayName: Terraform Apply job
+    steps:
+    - checkout: infrastructure
+      persistCredentials: true
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: latest
+    - script: |
+        cd Infrastructure/Terraform
+        terraform init
+        terraform apply -auto-approve \
+          -var="environment=$(EnvironmentName)" \
+          -var="location=$(Location)" \
+          -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
+          -var="container_registry_username=$(ContainerRegistryUsername)" \
+          -var="container_registry_password=$(ContainerRegistryPassword)" \
+          -var="container_image=$(ContainerImage)"
+      displayName: 'Terraform Init and Apply'
+
+- stage: Terraform Destroy
+  displayName: Terraform Destroy
+  condition: and(succeeded(), eq('${{ parameters.teardown }}', true))
+  pool:
+    vmImage: 'ubuntu-latest'
+  environment: 'terraform-approval'
+  jobs:
+  - job: TerraformDestroy
+    displayName: Terraform Destroy job
+    steps:
+    - checkout: infrastructure
+      persistCredentials: true
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: latest
+    - script: |
+        cd Infrastructure/Terraform
+        terraform init
+        terraform destroy -auto-approve \
+          -var="environment=$(EnvironmentName)" \
+          -var="location=$(Location)" \
+          -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
+          -var="container_registry_username=$(ContainerRegistryUsername)" \
+          -var="container_registry_password=$(ContainerRegistryPassword)" \
+          -var="container_image=$(ContainerImage)"
+      displayName: 'Terraform Init and Destroy'
