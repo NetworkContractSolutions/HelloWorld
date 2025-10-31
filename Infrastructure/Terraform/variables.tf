@@ -10,6 +10,8 @@ locals {
     "Environment" = var.environment
     "Location"    = var.location
     "IaCTool"     = "Terraform"
+    "CostCenter"  = "Engineering"
+    "Owner"       = "Infrastructure Team"
   }
 }
 
@@ -29,24 +31,24 @@ variable "location" {
   default     = "centralus"
 }
 
+########################################
+### Container App specific variables ###
+########################################
+
 variable "existing_resource_group_name" {
-  description = "The name of an existing resource group to use"
+  description = "The name of the existing resource group"
   type        = string
   default     = "rg-poc01-usc"
 }
 
 variable "existing_container_app_environment_name" {
-  description = "The name of an existing Container App Environment to use"
+  description = "The name of the existing Container App Environment"
   type        = string
   default     = "cae-poc01-usc"
 }
 
-########################################
-### Container App specific variables ###
-########################################
-
 variable "container_registry_login_server" {
-  description = "The login server for the container registry"
+  description = "The login server URL for the container registry"
   type        = string
   default     = "ncontracts.azurecr.io"
 }
@@ -64,7 +66,7 @@ variable "container_registry_password" {
 }
 
 variable "container_image" {
-  description = "The container image to deploy"
+  description = "The name of the container image to deploy"
   type        = string
   default     = "ncontracts.azurecr.io/helloworld:latest"
 }

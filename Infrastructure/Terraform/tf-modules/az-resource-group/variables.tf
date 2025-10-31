@@ -1,4 +1,4 @@
-variable "resource_group_name" {
+variable "name" {
   description = "The name of the resource group. Changing this forces a new resource to be created"
   type        = string
   default     = null

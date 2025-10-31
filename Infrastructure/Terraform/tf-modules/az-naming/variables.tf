@@ -16,17 +16,6 @@ variable "location" {
   type        = string
 }
 
-variable "location_list" {
-  description = "Location list"
-  type        = list(any)
-  default = [
-    "eastus",
-    "westus",
-    "centralus",
-    "eastus2"
-  ]
-}
-
 variable "alteration" {
   description = "Example of alteration: you spawn more than one environments in the same environment first alteration of the default deployment/environment = 01 second alteration of the deployment/environment = 02"
   type        = string
@@ -45,6 +34,12 @@ variable "tags" {
   default     = {}
 }
 
+variable "cloud" {
+  description = "Cloud name - example: azure, govcloud, etc."
+  type        = string
+  default     = null # aw for aws, az for azure, gc for google cloud, etc.
+}
+
 # Region specific variables
 
 # Location list and its assertion. The short location set according to name conventions.
@@ -57,21 +52,6 @@ variable "short_location_names" {
     "centralus" = "cus"
     "eastus2"   = "eus2"
   }
-}
-
-# Environment names list and its assertion. The short environment names set according to name conventions
-variable "environment_list" {
-  description = "Environment name"
-  type        = list(any)
-  default = [
-    "dev",
-    "devops",
-    "nonprod",
-    "prod",
-    "sandbox",
-    "hub",
-    "poc01"
-  ]
 }
 
 variable "short_environment_names" {

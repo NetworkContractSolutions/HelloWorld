@@ -7,23 +7,23 @@ module "naming" {
   tags        = local.tags
 }
 
-data "azurerm_resource_group" "default" {
+data "azurerm_resource_group" "cae_rg" {
   name = var.existing_resource_group_name
 }
 
-data "azurerm_container_app_environment" "default" {
+data "azurerm_container_app_environment" "cae_env" {
   name                = var.existing_container_app_environment_name
-  resource_group_name = data.azurerm_resource_group.default.name
+  resource_group_name = data.azurerm_resource_group.cae_rg.name
 }
 
 module "container_app" {
   source                          = "./tf-modules/az-container-app"
   container_app_name              = lower(join("-", ["ca", module.naming.function_name, "00"]))
-  resource_group_name             = data.azurerm_resource_group.default.name
-  container_app_environment_id    = data.azurerm_container_app_environment.default.id
+  resource_group_name             = data.azurerm_resource_group.cae_rg.name
+  container_app_environment_id    = data.azurerm_container_app_environment.cae_env.id
   revision_mode                   = "Single"
   ingress_external_enabled        = true
-  target_port                     = 80
+  target_port                     = 8080 # Default port for ASP.NET apps
   ingress_transport               = "auto"
   container_registry_login_server = var.container_registry_login_server
   container_registry_username     = var.container_registry_username

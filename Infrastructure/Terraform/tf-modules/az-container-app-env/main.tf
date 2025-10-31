@@ -6,7 +6,7 @@ resource "azurerm_container_app_environment" "default" {
   tags                    = var.tags
 
   identity {
-    type        = "UserAssigned"
+    type         = "UserAssigned"
     identity_ids = [var.managed_identity_id]
   }
 
@@ -20,11 +20,11 @@ resource "azurerm_container_app_environment" "default" {
   }
 
   vnet_configuration {
-    internal                    = var.vnet_conf_internal
-    infrastructure_subnet_id    = var.vnet_infra_subnet_id
-    docker_bridge_cidr          = null
-    platform_reserved_cidr      = null
-    platform_reserved_dns_ip    = null
+    internal                 = var.vnet_conf_internal
+    infrastructure_subnet_id = var.vnet_infra_subnet_id
+    docker_bridge_cidr       = null
+    platform_reserved_cidr   = null
+    platform_reserved_dns_ip = null
   }
 
   workload_profile {
