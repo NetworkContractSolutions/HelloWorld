@@ -18,7 +18,6 @@ Prerequisites
 - Terraform ~> 1.0 installed
 - Azure subscription access for the tenant/subscription IDs configured in providers.tf
 - Permission to read/write the remote state storage account and container
-- Required resource providers registered in the subscription (Microsoft.App, Microsoft.OperationalInsights, Microsoft.LogAnalytics if applicable)
 - Existing Resource Group and Container App Environment (referenced in variables)
 
 ### Local Development Tools (Optional)
@@ -111,9 +110,9 @@ existing_container_app_environment_name = "cae-poc01-usc"
 container_app_name = "ca-helloworld-poc01-usc-12345"
 
 # Container registry configuration
-container_registry_login_server      = "ncontracts.azurecr.io"
-managed_identity_name                = "managed_identity"
-managed_identity_resource_group_name = "managed_identity_rg"
+container_registry_login_server      = "ncontracts.azurecr.io" \
+managed_identity_name                = "managed_identity" \
+managed_identity_resource_group_name = "managed_identity_rg" \
 container_image                      = "ncontracts.azurecr.io/helloworld:latest"
 
 Customization
