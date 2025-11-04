@@ -111,10 +111,10 @@ existing_container_app_environment_name = "cae-poc01-usc"
 container_app_name = "ca-helloworld-poc01-usc-12345"
 
 # Container registry configuration
-container_registry_login_server = "ncontracts.azurecr.io"
-container_registry_username     = "ncontracts"
-container_registry_password     = "<secret>"
-container_image                 = "ncontracts.azurecr.io/helloworld:latest"
+container_registry_login_server      = "ncontracts.azurecr.io"
+managed_identity_name                = "managed_identity"
+managed_identity_resource_group_name = "managed_identity_rg"
+container_image                      = "ncontracts.azurecr.io/helloworld:latest"
 
 Customization
 - Container port and ingress: change target_port and ingress_* in module "container_app" inputs (main.tf).
@@ -126,17 +126,6 @@ Customization
 
 Outputs
 - Module outputs are defined within tf-modules; if your container app module exposes FQDN or URL, use those outputs after apply. Otherwise, you can read the FQDN from the azurerm_container_app resource (ingress.fqdn) inside the module.
-
-Security and secrets
-- Do not commit secrets. Prefer TF_VAR_* environment variables for sensitive inputs:
-  - TF_VAR_container_registry_username
-  - TF_VAR_container_registry_password
-- Ensure the Azure Storage backend is secured and access is scoped appropriately.
-
-Troubleshooting
-- MissingSubscriptionRegistration: Register Microsoft.App and related providers in your subscription.
-- Backend auth errors: Verify your identity has access to the storage account and that Azure AD auth is allowed.
-- Image pull failures: Confirm registry server/username/password are correct and that the image tag exists and is accessible.
 
 ## Azure DevOps Pipeline
 
@@ -176,8 +165,8 @@ The following variables must be configured in your Azure DevOps pipeline:
 - `ContainerRegistrySC`: Service connection for Azure Container Registry
 - `AzureResourceManagerSC`: Service connection for Azure Resource Manager
 - `ContainerRegistryLoginServer`: ACR login server URL
-- `ContainerRegistryUsername`: ACR username
-- `ContainerRegistryPassword`: ACR password (marked as secret)
+- `ManagedIdentityName`: User managed identity name
+- `ManagedIdentityResourceGroupName`: User managed identity resource group
 - `ContainerAppEnvironment`: Container App Environment identifier
 
 ### Integration with External Templates
