@@ -14,15 +14,15 @@ resource "azurerm_container_app" "container_app" {
     }
   }
 
-  registry {
-    server               = var.container_registry_login_server
-    username             = var.container_registry_username
-    password_secret_name = "registry-password"
+  # Manage container registry access using a user-assigned managed identity
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [var.user_assigned_identity_id]
   }
 
-  secret {
-    name  = "registry-password"
-    value = var.container_registry_password
+  registry {
+    server   = var.container_registry_login_server
+    identity = var.user_assigned_identity_id
   }
 
   template {

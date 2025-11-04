@@ -35,6 +35,12 @@ variable "location" {
 ### Container App specific variables ###
 ########################################
 
+variable "ca_name" {
+  description = "The name of the Container App"
+  type        = string
+  default     = "ca-helloworld-poc01-usc-001"
+}
+
 variable "existing_resource_group_name" {
   description = "The name of the existing resource group"
   type        = string
@@ -47,22 +53,22 @@ variable "existing_container_app_environment_name" {
   default     = "cae-poc01-usc"
 }
 
+variable "managed_identity_name" {
+  description = "The name of the user-assigned managed identity"
+  type        = string
+  default     = "uami-poc01-usc"
+}
+
+variable "managed_identity_resource_group_name" {
+  description = "The resource group name where the managed identity is located"
+  type        = string
+  default     = "rg-poc01-usc"
+}
+
 variable "container_registry_login_server" {
   description = "The login server URL for the container registry"
   type        = string
   default     = "ncontracts.azurecr.io"
-}
-
-variable "container_registry_username" {
-  description = "The username for the container registry"
-  type        = string
-  sensitive   = true
-}
-
-variable "container_registry_password" {
-  description = "The password for the container registry"
-  type        = string
-  sensitive   = true
 }
 
 variable "container_image" {

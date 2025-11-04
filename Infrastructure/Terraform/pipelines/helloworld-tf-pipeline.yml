@@ -7,17 +7,16 @@ parameters:
   - Feature01
   - Feature02
   - Prod
+  default: 'POC01'
 - name: teardown
   displayName: Teardown Environment
   type: boolean
-  default: true
+  values:
+  - true
+  - false
+  default: false
 
-variables:
-  ContainerRegistryRepository: 'helloworld'
-  Location: 'centralus'
-  ContainerAppName: 'helloworld-tf-ca-$(Build.BuildId)'
-  EnvironmentName: '${{ lower(parameters.EnvironmentName) }}'
-  ResourceGroup: 'rg-${{ lower(parameters.EnvironmentName) }}-usc'
+trigger: none
 
 resources:
   repositories:
@@ -27,7 +26,21 @@ resources:
     endpoint: NContractsGithub
     ref: poc01-cae-agw
 
-trigger: none
+variables:
+  ContainerRegistryRepository: 'helloworld'
+  Location: 'centralus'
+  LocationShort: 'usc'
+  ContainerAppName: 'ca-helloworld-${{ lower(parameters.EnvironmentName) }}-usc-$(Build.BuildId)'
+  EnvironmentName: '${{ lower(parameters.EnvironmentName) }}'
+  ResourceGroup: 'rg-helloworld-${{ lower(parameters.EnvironmentName) }}-usc'
+  ContainerAppEnvironmentName: 'cae-${{ lower(parameters.EnvironmentName) }}-usc'
+  #Variables that are defined in the pipeline
+  #ContainerRegistrySC: <Service Connection for the Container Registry>
+  #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
+  ManagedIdentityName: 'uami-helloworld-${{ lower(parameters.EnvironmentName) }}-usc'
+  ManagedIdentityResourceGroupName: 'rg-helloworld-${{ lower(parameters.EnvironmentName) }}-usc'
+  ContainerRegistryLoginServer: '$(ContainerRegistryLoginServer)'
+  ContainerAppEnvironment: '$(ContainerAppEnvironment)'
 
 stages:
 - stage: Build
@@ -47,87 +60,187 @@ stages:
         tags: $(Build.BuildId)
         Dockerfile: '**/HelloWorld/Dockerfile'
 
-- stage: Terraform Plan
+- stage: TerraformPlan
   displayName: Terraform Plan
   dependsOn: Build
   pool:
     vmImage: 'ubuntu-latest'
   jobs:
-  - job: TerraformPlan
+  - job: Plan
     displayName: Terraform Plan job
     steps:
-    - checkout: infrastructure
-      persistCredentials: true
+    - checkout: self
+      path: s/helloworld
+
     - task: TerraformInstaller@1
       displayName: Install Terraform
       inputs:
-        terraformVersion: latest
-    - script: |
-        cd Infrastructure/Terraform
-        terraform init
-        terraform plan \
-          -var="environment=$(EnvironmentName)" \
-          -var="location=$(Location)" \
-          -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
-          -var="container_registry_username=$(ContainerRegistryUsername)" \
-          -var="container_registry_password=$(ContainerRegistryPassword)" \
-          -var="container_image=$(ContainerImage)" \
-          -out=tfplan
-      displayName: 'Terraform Init and Plan'
+        terraformVersion: 'latest'
 
-- stage: Terraform Apply
+    - task: AzureCLI@2
+      displayName: 'Terraform Init and Plan'
+      inputs:
+        azureSubscription: '$(AzureResourceManagerSC)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+        inlineScript: |
+          terraform init
+          terraform plan \
+            -var="container_app_name=$(ContainerAppName)" \
+            -var="environment=$(EnvironmentName)" \
+            -var="location=$(Location)" \
+            -var="existing_resource_group_name=$(ResourceGroup)" \
+            -var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" \
+            -var="managed_identity_name=$(ManagedIdentityName)" \
+            -var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" \
+            -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
+            -var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" \
+            -var="target_port=8080" \
+            -out=tfplan
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Terraform Plan'
+      inputs:
+        targetPath: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+        artifact: 'terraform-plan'
+        publishLocation: 'pipeline'
+
+- stage: TerraformApply
   displayName: Terraform Apply
-  dependsOn: Terraform Plan
+  dependsOn: TerraformPlan
   condition: and(succeeded(), eq('${{ parameters.teardown }}', false))
   pool:
     vmImage: 'ubuntu-latest'
-  environment: 'terraform-approval'
   jobs:
-  - job: TerraformApply
+  - deployment: Apply
     displayName: Terraform Apply job
-    steps:
-    - checkout: infrastructure
-      persistCredentials: true
-    - task: TerraformInstaller@1
-      displayName: Install Terraform
-      inputs:
-        terraformVersion: latest
-    - script: |
-        cd Infrastructure/Terraform
-        terraform init
-        terraform apply -auto-approve \
-          -var="environment=$(EnvironmentName)" \
-          -var="location=$(Location)" \
-          -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
-          -var="container_registry_username=$(ContainerRegistryUsername)" \
-          -var="container_registry_password=$(ContainerRegistryPassword)" \
-          -var="container_image=$(ContainerImage)"
-      displayName: 'Terraform Init and Apply'
+    environment: 'terraform-apply'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+            path: s/helloworld
 
-- stage: Terraform Destroy
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Terraform Plan'
+            inputs:
+              buildType: 'current'
+              artifactName: 'terraform-plan'
+              targetPath: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+
+          - task: TerraformInstaller@1
+            displayName: Install Terraform
+            inputs:
+              terraformVersion: 'latest'
+
+          - task: AzureCLI@2
+            displayName: 'Terraform Init and Apply'
+            inputs:
+              azureSubscription: '$(AzureResourceManagerSC)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+              inlineScript: |
+                terraform init
+                terraform apply -auto-approve tfplan
+
+          - template: Templates/Tasks/InitializeCAE1.yml@infrastructure
+            parameters:
+              ServiceConnectionName: '$(AzureResourceManagerSC)'
+              EnvironmentName: '$(EnvironmentName)'
+              BrowserFriendlyRouting: true
+              ContainerAppFilter: '^$(ContainerAppName)$'
+              InternalOnly: true
+
+          - task: AzureCLI@2
+            displayName: 'Get Container App URL'
+            name: retrieveurl
+            inputs:
+              azureSubscription: '$(AzureResourceManagerSC)'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                $aca = az containerapp list -g $(ResourceGroup) | ConvertFrom-Json | Where-Object {$_.name -eq "$(ContainerAppName)"} | Select-Object -First 1
+                $url = "https://" + $aca.properties.configuration.ingress.fqdn
+                Write-Host "##vso[task.setvariable variable=IngressContainerAppUrl;isOutput=true]$url"
+
+                $deployment = '$(ContainerAppName)-$(EnvironmentName).dev.ncontracts.com'
+                Write-Host "DevNcontracts Container App URL: $deployment"
+                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$deployment"
+
+# - stage: Test
+#   displayName: Test stage
+#   dependsOn: TerraformApply
+#   pool: "WindowsAgents"
+#   jobs:
+#   - job: RunTests
+#     displayName: Run Tests
+#     variables:
+#       HomePageUrl: $[ stageDependencies.TerraformApply.Apply.outputs['Apply.retrieveurl.ContainerAppUrl'] ]
+#     steps:
+#     - script: dotnet build --configuration Debug
+#       displayName: 'Build .NET 8 Application'
+
+#     - task: VSTest@2
+#       displayName: 'HelloWorld UI Tests'
+#       inputs:
+#         testAssemblyVer2: |
+#           **/*.IntegrationTests.dll
+#           !**\*TestAdapter.dll
+#           !**\obj\**
+#           !**\bin\**\ref\**
+#         uiTests: true
+#         searchFolder: '$(System.DefaultWorkingDirectory)'
+#         failOnMinTestsNotRun: true
+#         minimumExpectedTests: '1'
+
+- stage: TerraformDestroy
   displayName: Terraform Destroy
+  dependsOn: TerraformApply
   condition: and(succeeded(), eq('${{ parameters.teardown }}', true))
   pool:
     vmImage: 'ubuntu-latest'
-  environment: 'terraform-approval'
   jobs:
-  - job: TerraformDestroy
+  - deployment: Destroy
     displayName: Terraform Destroy job
-    steps:
-    - checkout: infrastructure
-      persistCredentials: true
-    - task: TerraformInstaller@1
-      displayName: Install Terraform
-      inputs:
-        terraformVersion: latest
-    - script: |
-        cd Infrastructure/Terraform
-        terraform init
-        terraform destroy -auto-approve \
-          -var="environment=$(EnvironmentName)" \
-          -var="location=$(Location)" \
-          -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
-          -var="container_registry_username=$(ContainerRegistryUsername)" \
-          -var="container_registry_password=$(ContainerRegistryPassword)" \
-          -var="container_image=$(ContainerImage)"
-      displayName: 'Terraform Init and Destroy'
+    environment: 'terraform-destroy'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+            path: s/helloworld
+
+          - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
+            parameters:
+              ServiceConnectionName: '$(AzureResourceManagerSC)'
+              EnvironmentName: '$(EnvironmentName)'
+              ContainerAppName: '$(ContainerAppName)'
+
+          - task: TerraformInstaller@1
+            displayName: Install Terraform
+            inputs:
+              terraformVersion: 'latest'
+
+          - task: AzureCLI@2
+            displayName: 'Terraform Init and Destroy'
+            inputs:
+              azureSubscription: '$(AzureResourceManagerSC)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+              inlineScript: |
+                terraform init
+                terraform destroy -auto-approve \
+                  -var="container_app_name=$(ContainerAppName)" \
+                  -var="environment=$(EnvironmentName)" \
+                  -var="location=$(Location)" \
+                  -var="existing_resource_group_name=$(ResourceGroup)" \
+                  -var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" \
+                  -var="managed_identity_name=$(ManagedIdentityName)" \
+                  -var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" \
+                  -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
+                  -var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" \
+                  -var="target_port=8080"
