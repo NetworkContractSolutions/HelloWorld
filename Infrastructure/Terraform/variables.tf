@@ -35,13 +35,13 @@ variable "location" {
 ### Container App specific variables ###
 ########################################
 
-variable "ca_name" {
+variable "container_app_name" {
   description = "The name of the Container App"
   type        = string
   default     = "ca-helloworld-poc01-usc-001"
 }
 
-variable "existing_resource_group_name" {
+variable "existing_cae_resource_group_name" {
   description = "The name of the existing resource group"
   type        = string
   default     = "rg-poc01-usc"
@@ -75,4 +75,10 @@ variable "container_image" {
   description = "The name of the container image to deploy"
   type        = string
   default     = "ncontracts.azurecr.io/helloworld:latest"
+}
+
+variable "target_port" {
+  description = "The port on which the container listens"
+  type        = number
+  default     = 8080 # Default port for ASP.NET apps
 }

@@ -21,7 +21,7 @@ resources:
     type: github
     name: NetworkContractSolutions/Ncontracts.Infrastructure
     endpoint: NContractsGithub
-    ref: poc01-cae-agw
+    ref: poc01-cae-agw # point to main before merging
 
 variables:
   ContainerRegistryRepository: 'helloworld'
@@ -93,7 +93,7 @@ stages:
             -var="container_app_name=$(ContainerAppName)" \
             -var="environment=$(EnvironmentName)" \
             -var="location=$(Location)" \
-            -var="existing_resource_group_name=$(ResourceGroup)" \
+            -var="existing_cae_resource_group_name=$(ResourceGroup)" \
             -var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" \
             -var="managed_identity_name=$(ManagedIdentityName)" \
             -var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" \
@@ -252,7 +252,7 @@ stages:
                   -var="container_app_name=$(ContainerAppName)" \
                   -var="environment=$(EnvironmentName)" \
                   -var="location=$(Location)" \
-                  -var="existing_resource_group_name=$(ResourceGroup)" \
+                  -var="existing_cae_resource_group_name=$(ResourceGroup)" \
                   -var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" \
                   -var="managed_identity_name=$(ManagedIdentityName)" \
                   -var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" \

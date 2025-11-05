@@ -8,7 +8,7 @@ module "naming" {
 }
 
 data "azurerm_resource_group" "cae_rg" {
-  name = var.existing_resource_group_name
+  name = var.existing_cae_resource_group_name
 }
 
 data "azurerm_container_app_environment" "cae_env" {
@@ -23,12 +23,12 @@ data "azurerm_user_assigned_identity" "uami" {
 
 module "container_app" {
   source                          = "./tf-modules/az-container-app"
-  container_app_name              = var.ca_name
+  container_app_name              = var.container_app_name
   resource_group_name             = data.azurerm_resource_group.cae_rg.name
   container_app_environment_id    = data.azurerm_container_app_environment.cae_env.id
   revision_mode                   = "Single"
   ingress_external_enabled        = true
-  target_port                     = 8080 # Default port for ASP.NET apps
+  target_port                     = var.target_port
   ingress_transport               = "auto"
   container_registry_login_server = var.container_registry_login_server
   user_assigned_identity_id       = data.azurerm_user_assigned_identity.uami.id
