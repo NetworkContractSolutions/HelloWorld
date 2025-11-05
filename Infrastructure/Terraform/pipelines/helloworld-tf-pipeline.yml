@@ -11,9 +11,6 @@ parameters:
 - name: teardown
   displayName: Teardown Environment
   type: boolean
-  values:
-  - true
-  - false
   default: false
 
 trigger: none
@@ -85,7 +82,13 @@ stages:
         scriptLocation: 'inlineScript'
         workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
         inlineScript: |
-          terraform init
+          # Define a unique state file key for this build
+          STATE_FILE_KEY="helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+          echo "Using state file: $STATE_FILE_KEY"
+          
+          terraform init \
+            -backend-config="key=$STATE_FILE_KEY"
+          
           terraform plan \
             -var="container_app_name=$(ContainerAppName)" \
             -var="environment=$(EnvironmentName)" \
@@ -143,7 +146,13 @@ stages:
               scriptLocation: 'inlineScript'
               workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
               inlineScript: |
-                terraform init
+                # Define a unique state file key for this build
+                STATE_FILE_KEY="helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+                echo "Using state file: $STATE_FILE_KEY"
+                
+                terraform init \
+                  -backend-config="key=$STATE_FILE_KEY"
+                
                 terraform apply -auto-approve tfplan
 
           - template: Templates/Tasks/InitializeCAE1.yml@infrastructure
@@ -232,7 +241,13 @@ stages:
               scriptLocation: 'inlineScript'
               workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
               inlineScript: |
-                terraform init
+                # Define a unique state file key for this build
+                STATE_FILE_KEY="helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+                echo "Using state file: $STATE_FILE_KEY"
+                
+                terraform init \
+                  -backend-config="key=$STATE_FILE_KEY"
+
                 terraform destroy -auto-approve \
                   -var="container_app_name=$(ContainerAppName)" \
                   -var="environment=$(EnvironmentName)" \

@@ -5,7 +5,7 @@ terraform {
     resource_group_name  = "rg-dev-devops-usc"
     storage_account_name = "sadevterraformusc"
     container_name       = "hello-world"
-    key                  = "hello-world-tf.tfstate"
+    # key                  = "hello-world-tf.tfstate" # Configured dynamically in the pipeline
     use_azuread_auth     = true # Use Azure AD authentication
   }
 
