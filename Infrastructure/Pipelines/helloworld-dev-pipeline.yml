@@ -79,6 +79,101 @@ stages:
     - checkout: self
       path: s/helloworld
 
+    - task: AzureCLI@2
+      displayName: 'Debug Storage Access and Permissions'
+      inputs:
+        azureSubscription: '$(AzureResourceManagerSC)'
+        scriptType: 'pscore'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          Write-Host "=== Network Diagnostics ==="
+          Write-Host "Agent IP should be: 10.20.0.57"
+          Write-Host "Storage Private IP: 10.7.69.4"
+          
+          # Test connectivity to storage private endpoint
+          Test-NetConnection -ComputerName "sadevterraformusc.blob.core.windows.net" -Port 443 -InformationLevel Detailed
+          
+          Write-Host "`n=== Storage Account Access Tests ==="
+          
+          # Test 1: Check if we can authenticate
+          try {
+            Write-Host "1. Testing authentication..."
+            $account = az storage account show --name sadevterraformusc --query "name" -o tsv 2>$null
+            Write-Host "✅ Authentication successful. Account: $account"
+          }
+          catch {
+            Write-Host "❌ Authentication failed: $_"
+            exit 1
+          }
+          
+          # Test 2: Check if we can list containers
+          try {
+            Write-Host "2. Testing container list permission..."
+            az storage container list --account-name sadevterraformusc --auth-mode login --output table
+            Write-Host "✅ Container list permission: OK"
+          }
+          catch {
+            Write-Host "❌ Container list failed: $_"
+          }
+          
+          # Test 3: Check if hello-world container exists
+          try {
+            Write-Host "3. Testing hello-world container access..."
+            $container = az storage container show --name "hello-world" --account-name sadevterraformusc --auth-mode login --query "name" -o tsv 2>$null
+            Write-Host "✅ Container 'hello-world' exists: $container"
+          }
+          catch {
+            Write-Host "❌ Container 'hello-world' access failed: $_"
+          }
+          
+          # Test 4: Check if we can list blobs (Read permission)
+          try {
+            Write-Host "4. Testing blob list permission..."
+            az storage blob list --container-name "hello-world" --account-name sadevterraformusc --auth-mode login --output table --query "[].name" 2>$null
+            Write-Host "✅ Blob list permission: OK"
+          }
+          catch {
+            Write-Host "❌ Blob list failed: $_"
+          }
+          
+          # Test 5: Try to create a test blob (Write permission)
+          try {
+            Write-Host "5. Testing blob write permission..."
+            $testContent = "test-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+            $testBlob = "terraform-test-$(Build.BuildId).txt"
+            
+            echo $testContent | az storage blob upload `
+              --container-name "hello-world" `
+              --name $testBlob `
+              --account-name sadevterraformusc `
+              --auth-mode login `
+              --overwrite true 2>$null
+            
+            Write-Host "✅ Blob write permission: OK (created $testBlob)"
+            
+            # Cleanup test blob
+            az storage blob delete --container-name "hello-world" --name $testBlob --account-name sadevterraformusc --auth-mode login 2>$null
+            Write-Host "✅ Test blob cleaned up"
+          }
+          catch {
+            Write-Host "❌ Blob write permission failed: $_"
+            Write-Host "⚠️  This is likely the cause of Terraform backend issues!"
+          }
+          
+          Write-Host "`n=== Service Principal Info ==="
+          try {
+            $sp = az ad signed-in-user show --query "displayName" -o tsv 2>$null
+            if ($sp) {
+              Write-Host "Signed in as user: $sp"
+            } else {
+              $sp = az account show --query "user.name" -o tsv
+              Write-Host "Signed in as: $sp"
+            }
+          }
+          catch {
+            Write-Host "Could not determine signed-in user"
+          }
+    
     - task: TerraformInstaller@1
       displayName: Install Terraform
       inputs:
