@@ -2,6 +2,12 @@ parameters:
 - name: EnvironmentName
   displayName: Environment Name (Feature01, Feature02, POC01, Prod, Production)
   type: string
+  values:
+  - poc01
+  - Feature01
+  - Feature02
+  - Prod
+  - Production
   default: 'poc01'
 - name: teardown
   displayName: Teardown Environment
@@ -21,7 +27,7 @@ resources:
     type: github
     name: NetworkContractSolutions/Ncontracts.Infrastructure
     endpoint: NContractsGithub
-    ref: poc01-cae-agw
+    ref: poc01-cae-agw # point to main before merging
 
 variables:
   ContainerRegistryRepository: 'helloworld'
@@ -30,14 +36,17 @@ variables:
   EnvironmentName: '${{ lower(parameters.EnvironmentName) }}'
   ResourceGroup: 'rg-${{ lower(parameters.EnvironmentName) }}-usc'
   #Variables that are defined in the pipeline
-  #ContainerRegistrySC: <Service Connection for the Container Registry>
-  #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
+  ContainerAppEnvironmentName: 'cae-${{ lower(parameters.EnvironmentName) }}-usc'
+  ManagedIdentityName: 'mi-dev-devops-usc'
+  ManagedIdentityResourceGroupName: 'rg-dev-devops-usc'
+  ContainerRegistryLoginServer: 'ncontracts.azurecr.io'
+  AzureResourceManagerSC: 'Dev-Limited'
+  ContainerRegistrySC: 'NContractsSC'
   #LogAnalyticsWorkspace
   #LogAnalyticsResourceGroup: <Log analytics isn't created here and we can't assume that the container app and log analytics will be in the same resource group>
-  #ContainerRegistryLoginServer
   #ContainerRegistryUsername
   #ContainerRegistryPassword
-  #ContainerAppEnvironment: <The id of the container app environment (az containerapp env list)>
+  #ContainerAppEnvironmentId: <The id of the container app environment (az containerapp env list)>
 
 stages:
 - stage: Build
@@ -57,6 +66,59 @@ stages:
         tags: $(Build.BuildId)
         Dockerfile: '**/HelloWorld/Dockerfile'
 
+# New Terraform Plan stage
+- stage: TerraformPlan
+  displayName: Terraform Plan
+  dependsOn: Build
+  pool:
+    vmImage: 'ubuntu-latest'
+  jobs:
+  - job: Plan
+    displayName: Terraform Plan job
+    steps:
+    - checkout: self
+      path: s/helloworld
+
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: 'latest'
+
+    - task: AzureCLI@2
+      displayName: 'Terraform Init and Plan'
+      inputs:
+        azureSubscription: '$(AzureResourceManagerSC)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+        inlineScript: |
+          # Define a unique state file key for this build
+          STATE_FILE_KEY="helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+          echo "Using state file: $STATE_FILE_KEY"
+          
+          terraform init \
+            -backend-config="key=$STATE_FILE_KEY"
+          
+          terraform plan \
+            -var="container_app_name=$(ContainerAppName)" \
+            -var="environment=$(EnvironmentName)" \
+            -var="location=$(Region)" \
+            -var="existing_cae_resource_group_name=$(ResourceGroup)" \
+            -var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" \
+            -var="managed_identity_name=$(ManagedIdentityName)" \
+            -var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" \
+            -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
+            -var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" \
+            -var="target_port=8080" \
+            -out=tfplan
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Terraform Plan'
+      inputs:
+        targetPath: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+        artifact: 'terraform-plan'
+        publishLocation: 'pipeline'
+
 - stage: Deploy
   displayName: Deploy stage
   dependsOn: Build
@@ -73,27 +135,34 @@ stages:
           - checkout: self
             path: s/helloworld
 
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Terraform Plan'
+            inputs:
+              buildType: 'current'
+              artifactName: 'terraform-plan'
+              targetPath: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+
+          - task: TerraformInstaller@1
+            displayName: Install Terraform
+            inputs:
+              terraformVersion: 'latest'
+
           - task: AzureCLI@2
-            displayName: 'Container App - Create'
+            displayName: 'Terraform Init and Apply'
             inputs:
               azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'pscore'
+              scriptType: 'bash'
               scriptLocation: 'inlineScript'
+              workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
               inlineScript: |
-                $repoPath = "$(Pipeline.Workspace)/s/helloworld"
-
-                az deployment group create `
-                  --resource-group $(ResourceGroup) `
-                  --template-file $repoPath/Infrastructure/Pipelines/container-app.bicep `
-                  --parameters `
-                    containerAppName='$(ContainerAppName)' `
-                    location='$(Region)' `
-                    containerAppEnvironmentId='$(ContainerAppEnvironment)' `
-                    containerRegistryLoginServer='$(ContainerRegistryLoginServer)' `
-                    containerRegistryUsername='$(ContainerRegistryUsername)' `
-                    containerRegistryPassword='$(ContainerRegistryPassword)' `
-                    containerImage='$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)' `
-                    targetPort=8080
+                # Define a unique state file key for this build
+                STATE_FILE_KEY="helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+                echo "Using state file: $STATE_FILE_KEY"
+                
+                terraform init \
+                  -backend-config="key=$STATE_FILE_KEY"
+                
+                terraform apply -auto-approve tfplan
 
           - template: Templates/Tasks/InitializeCAE1.yml@infrastructure
             parameters:
@@ -112,7 +181,7 @@ stages:
               scriptLocation: 'inlineScript'
               inlineScript: |
                 $aca = az containerapp list -g $(ResourceGroup) | ConvertFrom-Json | Where-Object {$_.name -eq "$(ContainerAppName)"} | Select-Object -First 1
-                $url = "https://" + $aca.properties.configuration.ingress.fqdn 
+                $url = "https://" + $aca.properties.configuration.ingress.fqdn
                 Write-Host "##vso[task.setvariable variable=IngressContainerAppUrl;isOutput=true]$url"
 
                 $deployment = '$(ContainerAppName)-$(EnvironmentName).dev.ncontracts.com'
@@ -146,7 +215,7 @@ stages:
 #         minimumExpectedTests: '1'
 
 - stage: Teardown
-  displayName: Teardown stage
+  displayName: Teardown stage [Terraform Destroy]
   dependsOn: Deploy #Test
   condition: eq('${{ parameters.teardown }}', true)
   pool:
@@ -161,11 +230,34 @@ stages:
         EnvironmentName: '$(EnvironmentName)'
         ContainerAppName: '$(ContainerAppName)'
 
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: 'latest'
+
     - task: AzureCLI@2
-      displayName: 'Delete Container App'
+      displayName: 'Terraform Init and Destroy'
       inputs:
         azureSubscription: '$(AzureResourceManagerSC)'
-        scriptType: 'pscore'
+        scriptType: 'bash'
         scriptLocation: 'inlineScript'
+        workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
         inlineScript: |
-          az containerapp delete -n $(ContainerAppName) -g $(ResourceGroup) --yes --no-wait
+          # Define a unique state file key for this build
+          STATE_FILE_KEY="helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+          echo "Using state file: $STATE_FILE_KEY"
+          
+          terraform init \
+            -backend-config="key=$STATE_FILE_KEY"
+
+          terraform destroy -auto-approve \
+            -var="container_app_name=$(ContainerAppName)" \
+            -var="environment=$(EnvironmentName)" \
+            -var="location=$(Location)" \
+            -var="existing_cae_resource_group_name=$(ResourceGroup)" \
+            -var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" \
+            -var="managed_identity_name=$(ManagedIdentityName)" \
+            -var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" \
+            -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
+            -var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" \
+            -var="target_port=8080"

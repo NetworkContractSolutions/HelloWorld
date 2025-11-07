@@ -26,7 +26,6 @@ resources:
 variables:
   ContainerRegistryRepository: 'helloworld'
   Location: 'centralus'
-  LocationShort: 'usc'
   ContainerAppName: 'ca-helloworld-${{ lower(parameters.EnvironmentName) }}-usc-$(Build.BuildId)'
   EnvironmentName: '${{ lower(parameters.EnvironmentName) }}'
   ResourceGroup: 'rg-helloworld-${{ lower(parameters.EnvironmentName) }}-usc'
@@ -112,13 +111,12 @@ stages:
 - stage: TerraformApply
   displayName: Terraform Apply
   dependsOn: TerraformPlan
-  condition: and(succeeded(), eq('${{ parameters.teardown }}', false))
   pool:
     vmImage: 'ubuntu-latest'
   jobs:
   - deployment: Apply
     displayName: Terraform Apply job
-    environment: 'terraform-apply'
+    environment: 'Dev'
     strategy:
       runOnce:
         deploy:
@@ -214,7 +212,7 @@ stages:
   jobs:
   - deployment: Destroy
     displayName: Terraform Destroy job
-    environment: 'terraform-destroy'
+    environment: 'Dev'
     strategy:
       runOnce:
         deploy:
