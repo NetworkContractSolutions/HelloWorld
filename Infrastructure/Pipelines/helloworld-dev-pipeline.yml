@@ -87,29 +87,29 @@ stages:
       displayName: 'Terraform Init and Plan'
       inputs:
         azureSubscription: '$(AzureResourceManagerSC)'
-        scriptType: 'bash'
+        scriptType: 'pscore' #'bash'
         scriptLocation: 'inlineScript'
         workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
         inlineScript: |
           # Define a unique state file key for this build
-          STATE_FILE_KEY="helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
-          echo "Using state file: $STATE_FILE_KEY"
+          $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+          Write-Host "Using state file: $STATE_FILE_KEY"
           
-          terraform init \
-            -backend-config="key=$STATE_FILE_KEY"
+          terraform init `
+            --backend-config="key=$STATE_FILE_KEY"
           
-          terraform plan \
-            -var="container_app_name=$(ContainerAppName)" \
-            -var="environment=$(EnvironmentName)" \
-            -var="location=$(Region)" \
-            -var="existing_cae_resource_group_name=$(ResourceGroup)" \
-            -var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" \
-            -var="managed_identity_name=$(ManagedIdentityName)" \
-            -var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" \
-            -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
-            -var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" \
-            -var="target_port=8080" \
-            -out=tfplan
+          terraform plan `
+            --var="container_app_name=$(ContainerAppName)" `
+            --var="environment=$(EnvironmentName)" `
+            --var="location=$(Region)" `
+            --var="existing_cae_resource_group_name=$(ResourceGroup)" `
+            --var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" `
+            --var="managed_identity_name=$(ManagedIdentityName)" `
+            --var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" `
+            --var="container_registry_login_server=$(ContainerRegistryLoginServer)" `
+            --var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" `
+            --var="target_port=8080" `
+            --out=tfplan
 
     - task: PublishPipelineArtifact@1
       displayName: 'Publish Terraform Plan'
@@ -149,18 +149,18 @@ stages:
             displayName: 'Terraform Init and Apply'
             inputs:
               azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'bash'
+              scriptType: 'pscore' #'bash'
               scriptLocation: 'inlineScript'
               workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
               inlineScript: |
                 # Define a unique state file key for this build
-                STATE_FILE_KEY="helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
-                echo "Using state file: $STATE_FILE_KEY"
+                $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+                Write-Host "Using state file: $STATE_FILE_KEY"
                 
-                terraform init \
-                  -backend-config="key=$STATE_FILE_KEY"
+                terraform init `
+                  --backend-config="key=$STATE_FILE_KEY"
                 
-                terraform apply -auto-approve tfplan
+                terraform apply --auto-approve tfplan
 
           - template: Templates/Tasks/InitializeCAE1.yml@infrastructure
             parameters:
@@ -216,8 +216,7 @@ stages:
   displayName: Teardown stage [Terraform Destroy]
   dependsOn: Deploy #Test
   condition: eq('${{ parameters.teardown }}', true)
-  pool:
-    vmImage: 'ubuntu-latest'
+  pool: "WindowsAgents"
   jobs:
   - job: Teardown
     displayName: Teardown job
@@ -237,25 +236,25 @@ stages:
       displayName: 'Terraform Init and Destroy'
       inputs:
         azureSubscription: '$(AzureResourceManagerSC)'
-        scriptType: 'bash'
+        scriptType: 'pscore' #'bash'
         scriptLocation: 'inlineScript'
         workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
         inlineScript: |
           # Define a unique state file key for this build
-          STATE_FILE_KEY="helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
-          echo "Using state file: $STATE_FILE_KEY"
+          $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+          Write-Host "Using state file: $STATE_FILE_KEY"
           
-          terraform init \
-            -backend-config="key=$STATE_FILE_KEY"
+          terraform init `
+            --backend-config="key=$STATE_FILE_KEY"
 
-          terraform destroy -auto-approve \
-            -var="container_app_name=$(ContainerAppName)" \
-            -var="environment=$(EnvironmentName)" \
-            -var="location=$(Location)" \
-            -var="existing_cae_resource_group_name=$(ResourceGroup)" \
-            -var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" \
-            -var="managed_identity_name=$(ManagedIdentityName)" \
-            -var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" \
-            -var="container_registry_login_server=$(ContainerRegistryLoginServer)" \
-            -var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" \
-            -var="target_port=8080"
+          terraform destroy --auto-approve `
+            --var="container_app_name=$(ContainerAppName)" `
+            --var="environment=$(EnvironmentName)" `
+            --var="location=$(Region)" `
+            --var="existing_cae_resource_group_name=$(ResourceGroup)" `
+            --var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" `
+            --var="managed_identity_name=$(ManagedIdentityName)" `
+            --var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" `
+            --var="container_registry_login_server=$(ContainerRegistryLoginServer)" `
+            --var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" `
+            --var="target_port=8080"
