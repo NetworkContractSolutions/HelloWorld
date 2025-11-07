@@ -68,8 +68,9 @@ stages:
 
 # New Terraform Plan stage
 - stage: TerraformPlan
-  displayName: Terraform Plan
+  displayName: Terraform Plan Stage
   dependsOn: Build
+  condition: succeeded('Build')
   pool: "WindowsAgents"
   jobs:
   - job: Plan
@@ -119,8 +120,9 @@ stages:
         publishLocation: 'pipeline'
 
 - stage: Deploy
-  displayName: Deploy stage
-  dependsOn: Build
+  displayName: Terraform Apply Stage
+  dependsOn: TerraformPlan
+  condition: succeeded('TerraformPlan')
   pool: "WindowsAgents"
   jobs:
   - deployment: Deploy
@@ -213,9 +215,9 @@ stages:
 #         minimumExpectedTests: '1'
 
 - stage: Teardown
-  displayName: Teardown stage [Terraform Destroy]
+  displayName: Terraform Destroy Stage
   dependsOn: Deploy #Test
-  condition: eq('${{ parameters.teardown }}', true)
+  condition: and(succeeded('Deploy'), eq('${{ parameters.teardown }}', true))
   pool: "WindowsAgents"
   jobs:
   - job: Teardown
