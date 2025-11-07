@@ -70,8 +70,7 @@ stages:
 - stage: TerraformPlan
   displayName: Terraform Plan
   dependsOn: Build
-  pool:
-    vmImage: 'ubuntu-latest'
+  pool: "WindowsAgents"
   jobs:
   - job: Plan
     displayName: Terraform Plan job
@@ -122,8 +121,7 @@ stages:
 - stage: Deploy
   displayName: Deploy stage
   dependsOn: Build
-  pool:
-    vmImage: 'ubuntu-latest'
+  pool: "WindowsAgents"
   jobs:
   - deployment: Deploy
     displayName: Deploy job
