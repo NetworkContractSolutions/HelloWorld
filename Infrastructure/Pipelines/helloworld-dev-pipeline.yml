@@ -136,7 +136,8 @@ stages:
           Write-Host "Using state file: $STATE_FILE_KEY"
           
           terraform init `
-            --backend-config="key=$STATE_FILE_KEY"
+            --backend-config="key=$STATE_FILE_KEY" `
+            --reconfigure
           
           terraform plan `
             --var="container_app_name=$(ContainerAppName)" `
@@ -199,7 +200,8 @@ stages:
                 Write-Host "Using state file: $STATE_FILE_KEY"
                 
                 terraform init `
-                  --backend-config="key=$STATE_FILE_KEY"
+                  --backend-config="key=$STATE_FILE_KEY" `
+                  --reconfigure
                 
                 terraform apply --auto-approve tfplan
 
@@ -227,31 +229,51 @@ stages:
                 Write-Host "DevNcontracts Container App URL: $deployment"
                 Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$deployment"
       
-# - stage: Test
-#   displayName: Test stage
-#   dependsOn: Deploy
-#   pool: "WindowsAgents"
-#   jobs:
-#   - job: RunTests
-#     displayName: Run Tests
-#     variables:
-#       HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
-#     steps:
-#     - script: dotnet build --configuration Debug
-#       displayName: 'Build .NET 8 Application'
+# Playwright tests against the deployed application
+#- stage: Test
+#  displayName: Test stage
+#  dependsOn: Deploy
+#  pool: "WindowsAgents"
+#  jobs:
+#  - job: RunTests
+#    displayName: Run Tests
+#    variables:
+#      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
+#    steps:
+#    - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
+#      displayName: 'Build .NET 8 Playwright Test Project'
 
-#     - task: VSTest@2
-#       displayName: 'HelloWorld UI Tests'
-#       inputs:
-#         testAssemblyVer2: |
-#           **/*.IntegrationTests.dll
-#           !**\*TestAdapter.dll
-#           !**\obj\**
-#           !**\bin\**\ref\**
-#         uiTests: true
-#         searchFolder: '$(System.DefaultWorkingDirectory)'
-#         failOnMinTestsNotRun: true
-#         minimumExpectedTests: '1'
+    # Install Playwright browsers
+#    - task: PowerShell@2
+#      displayName: 'Install Playwright Browsers and Dependencies'
+#      inputs:
+#        targetType: 'inline'
+#        script: |
+#          cd HelloWorld.IntegrationTests/bin/Debug/net8.0
+#          pwsh playwright.ps1 install chromium
+           
+           # Install system dependencies for Linux agents
+#          if ($IsLinux) {
+#            Write-Host "Linux detected, installing system dependencies..."
+#            pwsh playwright.ps1 install-deps chromium
+#          } else {
+#            Write-Host "Windows detected, skipping system dependencies (not needed)"
+#          }
+#        workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+    # Run Playwright UI Tests
+#    - task: VSTest@2
+#      displayName: 'HelloWorld Playwright UI Tests'
+#      inputs:
+#        testAssemblyVer2: |
+#          **/*.IntegrationTests.dll
+#          !**\*TestAdapter.dll
+#          !**\obj\**
+#          !**\bin\**\ref\**
+#        uiTests: true
+#        searchFolder: '$(System.DefaultWorkingDirectory)'
+#        failOnMinTestsNotRun: true
+#        minimumExpectedTests: '1'
 
 - stage: Teardown
   displayName: Terraform Destroy Stage
@@ -286,7 +308,8 @@ stages:
           Write-Host "Using state file: $STATE_FILE_KEY"
           
           terraform init `
-            --backend-config="key=$STATE_FILE_KEY"
+            --backend-config="key=$STATE_FILE_KEY" `
+            --reconfigure
 
           terraform destroy --auto-approve `
             --var="container_app_name=$(ContainerAppName)" `

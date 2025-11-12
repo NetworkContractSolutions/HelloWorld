@@ -405,3 +405,7 @@ copilot-instructions.md
 *.tstate.backup
 .terraform/
 .terraform.lock.hcl
+
+# Local tests files
+test_local_*.sh
+HomeTestLocal.*
