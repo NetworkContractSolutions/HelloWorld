@@ -73,101 +73,6 @@ stages:
     - checkout: self
       path: s/helloworld
 
-    - task: AzureCLI@2
-      displayName: 'Debug Storage Access and Permissions'
-      inputs:
-        azureSubscription: '$(AzureResourceManagerSC)'
-        scriptType: 'pscore'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          Write-Host "=== Network Diagnostics ==="
-          Write-Host "Agent IP should be: 10.20.0.57 << this will change when the agent is moved to another subnet"
-          Write-Host "Storage Private IP: 10.7.69.4"
-          
-          # Test connectivity to storage private endpoint
-          Test-NetConnection -ComputerName "sadevterraformusc.blob.core.windows.net" -Port 443 -InformationLevel Detailed
-          
-          Write-Host "`n=== Storage Account Access Tests ==="
-          
-          # Test 1: Check if we can authenticate
-          try {
-            Write-Host "1. Testing authentication..."
-            $account = az storage account show --name sadevterraformusc --query "name" -o tsv 2>$null
-            Write-Host "✅ Authentication successful. Account: $account"
-          }
-          catch {
-            Write-Host "❌ Authentication failed: $_"
-            exit 1
-          }
-          
-          # Test 2: Check if we can list containers
-          try {
-            Write-Host "2. Testing container list permission..."
-            az storage container list --account-name sadevterraformusc --auth-mode login --output table
-            Write-Host "✅ Container list permission: OK"
-          }
-          catch {
-            Write-Host "❌ Container list failed: $_"
-          }
-          
-          # Test 3: Check if hello-world container exists
-          try {
-            Write-Host "3. Testing hello-world container access..."
-            $container = az storage container show --name "hello-world" --account-name sadevterraformusc --auth-mode login --query "name" -o tsv 2>$null
-            Write-Host "✅ Container 'hello-world' exists: $container"
-          }
-          catch {
-            Write-Host "❌ Container 'hello-world' access failed: $_"
-          }
-          
-          # Test 4: Check if we can list blobs (Read permission)
-          try {
-            Write-Host "4. Testing blob list permission..."
-            az storage blob list --container-name "hello-world" --account-name sadevterraformusc --auth-mode login --output table --query "[].name" 2>$null
-            Write-Host "✅ Blob list permission: OK"
-          }
-          catch {
-            Write-Host "❌ Blob list failed: $_"
-          }
-          
-          # Test 5: Try to create a test blob (Write permission)
-          try {
-            Write-Host "5. Testing blob write permission..."
-            $testContent = "test-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-            $testBlob = "terraform-test-$(Build.BuildId).txt"
-            
-            echo $testContent | az storage blob upload `
-              --container-name "hello-world" `
-              --name $testBlob `
-              --account-name sadevterraformusc `
-              --auth-mode login `
-              --overwrite true 2>$null
-            
-            Write-Host "✅ Blob write permission: OK (created $testBlob)"
-            
-            # Cleanup test blob
-            az storage blob delete --container-name "hello-world" --name $testBlob --account-name sadevterraformusc --auth-mode login 2>$null
-            Write-Host "✅ Test blob cleaned up"
-          }
-          catch {
-            Write-Host "❌ Blob write permission failed: $_"
-            Write-Host "⚠️  This is likely the cause of Terraform backend issues!"
-          }
-          
-          Write-Host "`n=== Service Principal Info ==="
-          try {
-            $sp = az ad signed-in-user show --query "displayName" -o tsv 2>$null
-            if ($sp) {
-              Write-Host "Signed in as user: $sp"
-            } else {
-              $sp = az account show --query "user.name" -o tsv
-              Write-Host "Signed in as: $sp"
-            }
-          }
-          catch {
-            Write-Host "Could not determine signed-in user"
-          }
-
     - task: TerraformInstaller@1
       displayName: Install Terraform
       inputs:
@@ -280,95 +185,95 @@ stages:
                 Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$deployment"
       
 # Playwright tests against the deployed application
-#- stage: Test
-#  displayName: Test stage
-#  dependsOn: Deploy
-#  pool: "WindowsAgents"
-#  jobs:
-#  - job: RunTests
-#    displayName: Run Tests
-#    variables:
-#      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
-#    steps:
-#    - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
-#      displayName: 'Build .NET 8 Playwright Test Project'
-
-    # Install Playwright browsers
-#    - task: PowerShell@2
-#      displayName: 'Install Playwright Browsers and Dependencies'
-#      inputs:
-#        targetType: 'inline'
-#        script: |
-#          cd HelloWorld.IntegrationTests/bin/Debug/net8.0
-#          pwsh playwright.ps1 install chromium
-           
-           # Install system dependencies for Linux agents
-#          if ($IsLinux) {
-#            Write-Host "Linux detected, installing system dependencies..."
-#            pwsh playwright.ps1 install-deps chromium
-#          } else {
-#            Write-Host "Windows detected, skipping system dependencies (not needed)"
-#          }
-#        workingDirectory: '$(System.DefaultWorkingDirectory)'
-
-    # Run Playwright UI Tests
-#    - task: VSTest@2
-#      displayName: 'HelloWorld Playwright UI Tests'
-#      inputs:
-#        testAssemblyVer2: |
-#          **/*.IntegrationTests.dll
-#          !**\*TestAdapter.dll
-#          !**\obj\**
-#          !**\bin\**\ref\**
-#        uiTests: true
-#        searchFolder: '$(System.DefaultWorkingDirectory)'
-#        failOnMinTestsNotRun: true
-#        minimumExpectedTests: '1'
-
-- stage: Teardown
-  displayName: Terraform Destroy Stage
-  dependsOn: Deploy #Test
-  condition: and(succeeded('Deploy'), eq('${{ parameters.teardown }}', true))
+- stage: Test
+  displayName: Test stage
+  dependsOn: Deploy
   pool: "WindowsAgents"
   jobs:
-  - job: Teardown
-    displayName: Teardown job
+  - job: RunTests
+    displayName: Run Tests
+    variables:
+      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
     steps:
-    - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
-      parameters:
-        ServiceConnectionName: '$(AzureResourceManagerSC)'
-        EnvironmentName: '$(EnvironmentName)'
-        ContainerAppName: '$(ContainerAppName)'
+    - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
+      displayName: 'Build .NET 8 Playwright Test Project'
 
-    - task: TerraformInstaller@1
-      displayName: Install Terraform
+# Install Playwright browsers
+    - task: PowerShell@2
+      displayName: 'Install Playwright Browsers and Dependencies'
       inputs:
-        terraformVersion: 'latest'
+        targetType: 'inline'
+        script: |
+          cd HelloWorld.IntegrationTests/bin/Debug/net8.0
+          pwsh playwright.ps1 install chromium
+           
+          # Install system dependencies for Linux agents
+          if ($IsLinux) {
+            Write-Host "Linux detected, installing system dependencies..."
+            pwsh playwright.ps1 install-deps chromium
+          } else {
+            Write-Host "Windows detected, skipping system dependencies (not needed)"
+          }
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
 
-    - task: AzureCLI@2
-      displayName: 'Terraform Init and Destroy'
+# Run Playwright UI Tests
+    - task: VSTest@2
+      displayName: 'HelloWorld Playwright UI Tests'
       inputs:
-        azureSubscription: '$(AzureResourceManagerSC)'
-        scriptType: 'pscore' #'bash'
-        scriptLocation: 'inlineScript'
-        workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
-        inlineScript: |
+        testAssemblyVer2: |
+          **/*.IntegrationTests.dll
+          !**\*TestAdapter.dll
+          !**\obj\**
+          !**\bin\**\ref\**
+        uiTests: true
+        searchFolder: '$(System.DefaultWorkingDirectory)'
+        failOnMinTestsNotRun: true
+        minimumExpectedTests: '1'
+
+#- stage: Teardown
+#  displayName: Terraform Destroy Stage
+#  dependsOn: Deploy #Test
+#  condition: and(succeeded('Deploy'), eq('${{ parameters.teardown }}', true))
+#  pool: "WindowsAgents"
+#  jobs:
+#  - job: Teardown
+#    displayName: Teardown job
+#    steps:
+#    - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
+#      parameters:
+#        ServiceConnectionName: '$(AzureResourceManagerSC)'
+#        EnvironmentName: '$(EnvironmentName)'
+#        ContainerAppName: '$(ContainerAppName)'
+
+#    - task: TerraformInstaller@1
+#      displayName: Install Terraform
+#      inputs:
+#        terraformVersion: 'latest'
+
+#    - task: AzureCLI@2
+#      displayName: 'Terraform Init and Destroy'
+#      inputs:
+#        azureSubscription: '$(AzureResourceManagerSC)'
+#        scriptType: 'pscore' #'bash'
+#        scriptLocation: 'inlineScript'
+#        workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+#        inlineScript: |
           # Define a unique state file key for this build
-          $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
-          Write-Host "Using state file: $STATE_FILE_KEY"
+#          $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+#          Write-Host "Using state file: $STATE_FILE_KEY"
           
-          terraform init `
-            --backend-config="key=$STATE_FILE_KEY" `
-            --reconfigure
+#          terraform init `
+#            --backend-config="key=$STATE_FILE_KEY" `
+#            --reconfigure
 
-          terraform destroy --auto-approve `
-            --var="container_app_name=$(ContainerAppName)" `
-            --var="environment=$(EnvironmentName)" `
-            --var="location=$(Region)" `
-            --var="existing_cae_resource_group_name=$(ResourceGroup)" `
-            --var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" `
-            --var="managed_identity_name=$(ManagedIdentityName)" `
-            --var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" `
-            --var="container_registry_login_server=$(ContainerRegistryLoginServer)" `
-            --var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" `
-            --var="target_port=8080"
+#          terraform destroy --auto-approve `
+#            --var="container_app_name=$(ContainerAppName)" `
+#            --var="environment=$(EnvironmentName)" `
+#            --var="location=$(Region)" `
+#            --var="existing_cae_resource_group_name=$(ResourceGroup)" `
+#            --var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" `
+#            --var="managed_identity_name=$(ManagedIdentityName)" `
+#            --var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" `
+#            --var="container_registry_login_server=$(ContainerRegistryLoginServer)" `
+#            --var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" `
+#            --var="target_port=8080"
