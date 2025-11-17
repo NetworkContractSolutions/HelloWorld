@@ -52,6 +52,27 @@ stages:
   - job: Package
     displayName: Package job
     steps:
+    - task: DotNetCoreCLI@2
+      displayName: 'Ensure NuGet.org feed'
+      inputs:
+        command: custom
+        custom: nuget
+        arguments: >
+          add source https://api.nuget.org/v3/index.json
+          --name nuget.org
+
+    - task: PowerShell@2
+      displayName: 'Verify NuGet sources'
+      inputs:
+        targetType: 'inline'
+        script: dotnet nuget list source
+
+    - task: UseDotNet@2
+      displayName: 'Install .NET SDK 8.0.x'
+      inputs:
+        packageType: 'sdk'
+        version: '8.0.x'
+    
     - task: PowerShell@2
       displayName: 'Troubleshoot .NET SDK availability'
       inputs:
