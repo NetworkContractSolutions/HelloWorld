@@ -193,7 +193,7 @@ stages:
       
 - stage: Test
   displayName: Test stage
-  dependsOn: Deploy
+  #dependsOn: Deploy
   pool: "WindowsAgents"
   jobs:
   - job: RunTests
