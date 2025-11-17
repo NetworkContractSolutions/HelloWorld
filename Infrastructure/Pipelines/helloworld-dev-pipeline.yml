@@ -52,14 +52,19 @@ stages:
   - job: Package
     displayName: Package job
     steps:
-    - task: DotNetCoreCLI@2
+    - task: PowerShell@2
       displayName: 'Ensure NuGet.org feed'
       inputs:
-        command: custom
-        custom: nuget
-        arguments: >
-          add source https://api.nuget.org/v3/index.json
-          --name nuget.org
+        targetType: 'inline'
+        script: |
+          $sourceName = 'nuget.org'
+          $sourceUrl = 'https://api.nuget.org/v3/index.json'
+          $sourcesOutput = dotnet nuget list source
+          if ($sourcesOutput -notmatch [regex]::Escape($sourceUrl)) {
+            dotnet nuget add source $sourceUrl --name $sourceName
+          } else {
+            Write-Host "NuGet source '$sourceUrl' already registered."
+          }
 
     - task: PowerShell@2
       displayName: 'Verify NuGet sources'
@@ -201,14 +206,19 @@ stages:
     variables:
       HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
     steps:
-    - task: DotNetCoreCLI@2
+    - task: PowerShell@2
       displayName: 'Ensure NuGet.org feed'
       inputs:
-        command: custom
-        custom: nuget
-        arguments: >
-          add source https://api.nuget.org/v3/index.json
-          --name nuget.org
+        targetType: 'inline'
+        script: |
+          $sourceName = 'nuget.org'
+          $sourceUrl = 'https://api.nuget.org/v3/index.json'
+          $sourcesOutput = dotnet nuget list source
+          if ($sourcesOutput -notmatch [regex]::Escape($sourceUrl)) {
+            dotnet nuget add source $sourceUrl --name $sourceName
+          } else {
+            Write-Host "NuGet source '$sourceUrl' already registered."
+          }
     
     - task: UseDotNet@2
       displayName: 'Install .NET SDK 8.0.x' # Ensure .NET 8 is installed
