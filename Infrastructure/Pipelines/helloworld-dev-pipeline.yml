@@ -53,26 +53,6 @@ stages:
     displayName: Package job
     steps:
     - task: PowerShell@2
-      displayName: 'Ensure NuGet.org feed'
-      inputs:
-        targetType: 'inline'
-        script: |
-          $sourceName = 'nuget.org'
-          $sourceUrl = 'https://api.nuget.org/v3/index.json'
-          $sourcesOutput = dotnet nuget list source
-          if ($sourcesOutput -notmatch [regex]::Escape($sourceUrl)) {
-            dotnet nuget add source $sourceUrl --name $sourceName
-          } else {
-            Write-Host "NuGet source '$sourceUrl' already registered."
-          }
-    
-    - task: UseDotNet@2
-      displayName: 'Install .NET SDK 8.0.x' # Ensure .NET 8 is installed
-      inputs:
-        packageType: 'sdk'
-        version: '8.0.x'
-    
-    - task: PowerShell@2
       displayName: 'Troubleshoot .NET SDK availability'
       inputs:
         targetType: 'inline'
