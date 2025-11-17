@@ -195,18 +195,22 @@ stages:
     variables:
       HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['retrieveurl.ContainerAppUrl'] ]
     steps:
+    # Build Playwright test project
     - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
       displayName: 'Build .NET 8 Playwright Test Project'
+      env:
+        HomePageUrl: $(HomePageUrl)
 
-    # Install Playwright browsers
+    # Install Playwright browsers and dependencies
     - task: PowerShell@2
       displayName: 'Install Playwright Browsers and Dependencies'
+      env:
+        HomePageUrl: $(HomePageUrl)
       inputs:
         targetType: 'inline'
         script: |
           cd HelloWorld.IntegrationTests/bin/Debug/net8.0
           pwsh playwright.ps1 install chromium
-          # Install system dependencies for Linux agents
           if ($IsLinux) {
             Write-Host "Linux detected, installing system dependencies..."
             pwsh playwright.ps1 install-deps chromium
@@ -215,13 +219,15 @@ stages:
           }
         workingDirectory: '$(System.DefaultWorkingDirectory)'
 
-    # Run Playwright UI Tests
+    # Run UI tests against the deployed Container App
     - task: DotNetCoreCLI@2
       displayName: 'Run Playwright UI Tests'
+      env:
+        HomePageUrl: $(HomePageUrl)
       inputs:
         command: test
         projects: 'HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj'
-        arguments: '--configuration Debug --no-build'
+        arguments: '--configuration Debug --no-build -- TestRunParameters.Parameter(name=HomePageUrl,value=$(HomePageUrl))'
 
 - stage: Teardown
   displayName: Terraform Destroy Stage
