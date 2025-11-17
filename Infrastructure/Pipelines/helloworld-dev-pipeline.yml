@@ -193,7 +193,7 @@ stages:
   - job: RunTests
     displayName: Run Tests
     variables:
-      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
+      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['retrieveurl.ContainerAppUrl'] ]
     steps:
     - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
       displayName: 'Build .NET 8 Playwright Test Project'
