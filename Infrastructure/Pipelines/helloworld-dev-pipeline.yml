@@ -51,184 +51,186 @@ stages:
   - job: Package
     displayName: Package job
     steps:
-    - task: Docker@2
-      displayName: Build and Push
-      inputs:
-        command: buildAndPush
-        containerRegistry: '$(ContainerRegistrySC)'
-        repository: '$(ContainerRegistryRepository)'
-        tags: $(Build.BuildId)
-        Dockerfile: '**/HelloWorld/Dockerfile'
-
-# New Terraform Plan stage
-- stage: TerraformPlan
-  displayName: Terraform Plan Stage
-  dependsOn: Build
-  condition: succeeded('Build')
-  pool: "WindowsAgents"
-  jobs:
-  - job: Plan
-    displayName: Terraform Plan job
-    steps:
-    - checkout: self
-      path: s/helloworld
-
-    - task: TerraformInstaller@1
-      displayName: Install Terraform
-      inputs:
-        terraformVersion: 'latest'
-
-    - task: AzureCLI@2
-      displayName: 'Terraform Init and Plan'
-      inputs:
-        azureSubscription: '$(AzureResourceManagerSC)'
-        scriptType: 'pscore' #'bash'
-        scriptLocation: 'inlineScript'
-        workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
-        inlineScript: |
-          # Define a unique state file key for this build
-          $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
-          Write-Host "Using state file: $STATE_FILE_KEY"
-          
-          terraform init `
-            --backend-config="key=$STATE_FILE_KEY" `
-            --reconfigure
-          
-          terraform plan `
-            --var="container_app_name=$(ContainerAppName)" `
-            --var="environment=$(EnvironmentName)" `
-            --var="location=$(Region)" `
-            --var="existing_cae_resource_group_name=$(ResourceGroup)" `
-            --var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" `
-            --var="managed_identity_name=$(ManagedIdentityName)" `
-            --var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" `
-            --var="container_registry_login_server=$(ContainerRegistryLoginServer)" `
-            --var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" `
-            --var="target_port=8080" `
-            --out=tfplan
-
-    - task: PublishPipelineArtifact@1
-      displayName: 'Publish Terraform Plan'
-      inputs:
-        targetPath: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
-        artifact: 'terraform-plan'
-        publishLocation: 'pipeline'
-
-- stage: Deploy
-  displayName: Terraform Apply Stage
-  dependsOn: TerraformPlan
-  condition: succeeded('TerraformPlan')
-  pool: "WindowsAgents"
-  jobs:
-  - deployment: Deploy
-    displayName: Deploy job
-    environment: 'Dev'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - checkout: self
-            path: s/helloworld
-
-          - task: DownloadPipelineArtifact@2
-            displayName: 'Download Terraform Plan'
-            inputs:
-              buildType: 'current'
-              artifactName: 'terraform-plan'
-              targetPath: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
-
-          - task: TerraformInstaller@1
-            displayName: Install Terraform
-            inputs:
-              terraformVersion: 'latest'
-
-          - task: AzureCLI@2
-            displayName: 'Terraform Init and Apply'
-            inputs:
-              azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'pscore' #'bash'
-              scriptLocation: 'inlineScript'
-              workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
-              inlineScript: |
-                # Define a unique state file key for this build
-                $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
-                Write-Host "Using state file: $STATE_FILE_KEY"
-                
-                terraform init `
-                  --backend-config="key=$STATE_FILE_KEY" `
-                  --reconfigure
-                
-                terraform apply --auto-approve tfplan
-
-          - template: Templates/Tasks/InitializeCAE1.yml@infrastructure
-            parameters:
-              ServiceConnectionName: '$(AzureResourceManagerSC)'
-              EnvironmentName: '$(EnvironmentName)'
-              BrowserFriendlyRouting: true
-              ContainerAppFilter: '^$(ContainerAppName)$'
-              InternalOnly: true
-
-          - task: AzureCLI@2
-            displayName: 'Get CA URL'
-            name: retrieveurl
-            inputs:
-              azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'pscore'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                $aca = az containerapp list -g $(ResourceGroup) | ConvertFrom-Json | Where-Object {$_.name -eq "$(ContainerAppName)"} | Select-Object -First 1
-                $url = "https://" + $aca.properties.configuration.ingress.fqdn
-                Write-Host "##vso[task.setvariable variable=IngressContainerAppUrl;isOutput=true]$url"
-
-                $deployment = '$(ContainerAppName)-$(EnvironmentName).dev.ncontracts.com'
-                Write-Host "DevNcontracts Container App URL: $deployment"
-                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$deployment"
-      
-# Playwright tests against the deployed application
-- stage: Test
-  displayName: Test stage
-  dependsOn: Deploy
-  pool: "WindowsAgents"
-  jobs:
-  - job: RunTests
-    displayName: Run Tests
-    variables:
-      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
-    steps:
-    - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
-      displayName: 'Build .NET 8 Playwright Test Project'
-
-# Install Playwright browsers
     - task: PowerShell@2
-      displayName: 'Install Playwright Browsers and Dependencies'
+      displayName: 'Troubleshoot .NET SDK availability'
       inputs:
         targetType: 'inline'
         script: |
-          cd HelloWorld.IntegrationTests/bin/Debug/net8.0
-          pwsh playwright.ps1 install chromium
+          Write-Host 'dotnet --info'
+          dotnet --info
+          Write-Host 'dotnet --list-sdks'
+          dotnet --list-sdks
+          Write-Host 'dotnet nuget list source'
+          dotnet nuget list source
+
+    - task: PowerShell@2
+      displayName: 'Validate connectivity to api.nuget.org'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $uri = 'https://api.nuget.org/v3/index.json'
+          Write-Host "Testing outbound connectivity to $uri"
+          try {
+            $response = Invoke-WebRequest -Uri $uri -Method Head -UseBasicParsing -TimeoutSec 30
+            Write-Host "Status code: $($response.StatusCode)"
+          }
+          catch {
+            Write-Error "Failed to reach $uri. $_"
+            exit 1
+          }
+
+    #- task: Docker@2
+    #  displayName: Build and Push
+    #  inputs:
+    #    command: buildAndPush
+    #    containerRegistry: '$(ContainerRegistrySC)'
+    #    repository: '$(ContainerRegistryRepository)'
+    #    tags: $(Build.BuildId)
+    #    Dockerfile: '**/HelloWorld/Dockerfile'
+
+# New Terraform Plan stage
+#- stage: TerraformPlan
+#  displayName: Terraform Plan Stage
+#  dependsOn: Build
+#  condition: succeeded('Build')
+#  pool: "WindowsAgents"
+#  jobs:
+#  - job: Plan
+#    displayName: Terraform Plan job
+#    steps:
+#    - checkout: self
+#            --var="existing_cae_resource_group_name=$(ResourceGroup)" `
+#            --var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" `
+#            --var="managed_identity_name=$(ManagedIdentityName)" `
+#            --var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" `
+#            --var="container_registry_login_server=$(ContainerRegistryLoginServer)" `
+#            --var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" `
+#            --var="target_port=8080" `
+#            --out=tfplan
+
+#    - task: PublishPipelineArtifact@1
+#      displayName: 'Publish Terraform Plan'
+#      inputs:
+#        targetPath: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+#        artifact: 'terraform-plan'
+#        publishLocation: 'pipeline'
+
+#- stage: Deploy
+#  displayName: Terraform Apply Stage
+#  dependsOn: TerraformPlan
+#  condition: succeeded('TerraformPlan')
+#  pool: "WindowsAgents"
+#  jobs:
+#  - deployment: Deploy
+#    displayName: Deploy job
+#    environment: 'Dev'
+#    strategy:
+#      runOnce:
+#        deploy:
+#          steps:
+#          - checkout: self
+#            path: s/helloworld
+
+#          - task: DownloadPipelineArtifact@2
+#            displayName: 'Download Terraform Plan'
+#            inputs:
+#              buildType: 'current'
+#              artifactName: 'terraform-plan'
+#              targetPath: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+
+#          - task: TerraformInstaller@1
+#            displayName: Install Terraform
+#            inputs:
+#              terraformVersion: 'latest'
+
+#          - task: AzureCLI@2
+#            displayName: 'Terraform Init and Apply'
+#            inputs:
+#              azureSubscription: '$(AzureResourceManagerSC)'
+#              scriptType: 'pscore' #'bash'
+#              scriptLocation: 'inlineScript'
+#              workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+#              inlineScript: |
+                # Define a unique state file key for this build
+#                $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+#                Write-Host "Using state file: $STATE_FILE_KEY"
+                
+#                terraform init `
+#                  --backend-config="key=$STATE_FILE_KEY" `
+#                  --reconfigure
+                
+#                terraform apply --auto-approve tfplan
+
+#          - template: Templates/Tasks/InitializeCAE1.yml@infrastructure
+#            parameters:
+#              ServiceConnectionName: '$(AzureResourceManagerSC)'
+#              EnvironmentName: '$(EnvironmentName)'
+#              BrowserFriendlyRouting: true
+#              ContainerAppFilter: '^$(ContainerAppName)$'
+#              InternalOnly: true
+
+#          - task: AzureCLI@2
+#            displayName: 'Get CA URL'
+#            name: retrieveurl
+#            inputs:
+#              azureSubscription: '$(AzureResourceManagerSC)'
+#              scriptType: 'pscore'
+#              scriptLocation: 'inlineScript'
+#              inlineScript: |
+#                $aca = az containerapp list -g $(ResourceGroup) | ConvertFrom-Json | Where-Object {$_.name -eq "$(ContainerAppName)"} | Select-Object -First 1
+#                $url = "https://" + $aca.properties.configuration.ingress.fqdn
+#                Write-Host "##vso[task.setvariable variable=IngressContainerAppUrl;isOutput=true]$url"
+
+#                $deployment = '$(ContainerAppName)-$(EnvironmentName).dev.ncontracts.com'
+#                Write-Host "DevNcontracts Container App URL: $deployment"
+#                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$deployment"
+      
+# Playwright tests against the deployed application
+#- stage: Test
+#  displayName: Test stage
+#  dependsOn: Deploy
+#  pool: "WindowsAgents"
+#  jobs:
+#  - job: RunTests
+#    displayName: Run Tests
+#    variables:
+#      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
+#    steps:
+
+#    - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
+#      displayName: 'Build .NET 8 Playwright Test Project'
+
+# Install Playwright browsers
+#    - task: PowerShell@2
+#      displayName: 'Install Playwright Browsers and Dependencies'
+#      inputs:
+#        targetType: 'inline'
+#        script: |
+#          cd HelloWorld.IntegrationTests/bin/Debug/net8.0
+#          pwsh playwright.ps1 install chromium
            
           # Install system dependencies for Linux agents
-          if ($IsLinux) {
-            Write-Host "Linux detected, installing system dependencies..."
-            pwsh playwright.ps1 install-deps chromium
-          } else {
-            Write-Host "Windows detected, skipping system dependencies (not needed)"
-          }
-        workingDirectory: '$(System.DefaultWorkingDirectory)'
+#          if ($IsLinux) {
+#            Write-Host "Linux detected, installing system dependencies..."
+#            pwsh playwright.ps1 install-deps chromium
+#          } else {
+#            Write-Host "Windows detected, skipping system dependencies (not needed)"
+#          }
+#        workingDirectory: '$(System.DefaultWorkingDirectory)'
 
 # Run Playwright UI Tests
-    - task: VSTest@2
-      displayName: 'HelloWorld Playwright UI Tests'
-      inputs:
-        testAssemblyVer2: |
-          **/*.IntegrationTests.dll
-          !**\*TestAdapter.dll
-          !**\obj\**
-          !**\bin\**\ref\**
-        uiTests: true
-        searchFolder: '$(System.DefaultWorkingDirectory)'
-        failOnMinTestsNotRun: true
-        minimumExpectedTests: '1'
+#    - task: VSTest@2
+#      displayName: 'HelloWorld Playwright UI Tests'
+#      inputs:
+#        testAssemblyVer2: |
+#          **/*.IntegrationTests.dll
+#          !**\*TestAdapter.dll
+#          !**\obj\**
+#          !**\bin\**\ref\**
+#        uiTests: true
+#        searchFolder: '$(System.DefaultWorkingDirectory)'
+#        failOnMinTestsNotRun: true
+#        minimumExpectedTests: '1'
 
 #- stage: Teardown
 #  displayName: Terraform Destroy Stage
