@@ -85,22 +85,6 @@ stages:
           Write-Host 'dotnet nuget list source'
           dotnet nuget list source
 
-    - task: PowerShell@2
-      displayName: 'Validate connectivity to api.nuget.org'
-      inputs:
-        targetType: 'inline'
-        script: |
-          $uri = 'https://api.nuget.org/v3/index.json'
-          Write-Host "Testing outbound connectivity to $uri"
-          try {
-            $response = Invoke-WebRequest -Uri $uri -Method Head -UseBasicParsing -TimeoutSec 30
-            Write-Host "Status code: $($response.StatusCode)"
-          }
-          catch {
-            Write-Error "Failed to reach $uri. $_"
-            exit 1
-          }
-
     #- task: Docker@2
     #  displayName: Build and Push
     #  inputs:
@@ -207,52 +191,59 @@ stages:
 #                Write-Host "DevNcontracts Container App URL: $deployment"
 #                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$deployment"
       
-# Playwright tests against the deployed application
-#- stage: Test
-#  displayName: Test stage
-#  dependsOn: Deploy
-#  pool: "WindowsAgents"
-#  jobs:
-#  - job: RunTests
-#    displayName: Run Tests
-#    variables:
-#      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
-#    steps:
+- stage: Test
+  displayName: Test stage
+  dependsOn: Deploy
+  pool: "WindowsAgents"
+  jobs:
+  - job: RunTests
+    displayName: Run Tests
+    variables:
+      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
+    steps:
+    - task: DotNetCoreCLI@2
+      displayName: 'Ensure NuGet.org feed'
+      inputs:
+        command: custom
+        custom: nuget
+        arguments: >
+          add source https://api.nuget.org/v3/index.json
+          --name nuget.org
+    
+    - task: UseDotNet@2
+      displayName: 'Install .NET SDK 8.0.x' # Ensure .NET 8 is installed
+      inputs:
+        packageType: 'sdk'
+        version: '8.0.x'
+    
+    - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
+      displayName: 'Build .NET 8 Playwright Test Project'
 
-#    - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
-#      displayName: 'Build .NET 8 Playwright Test Project'
-
-# Install Playwright browsers
-#    - task: PowerShell@2
-#      displayName: 'Install Playwright Browsers and Dependencies'
-#      inputs:
-#        targetType: 'inline'
-#        script: |
-#          cd HelloWorld.IntegrationTests/bin/Debug/net8.0
-#          pwsh playwright.ps1 install chromium
+    # Install Playwright browsers
+    - task: PowerShell@2
+      displayName: 'Install Playwright Browsers and Dependencies'
+      inputs:
+        targetType: 'inline'
+        script: |
+          cd HelloWorld.IntegrationTests/bin/Debug/net8.0
+          pwsh playwright.ps1 install chromium
            
           # Install system dependencies for Linux agents
-#          if ($IsLinux) {
-#            Write-Host "Linux detected, installing system dependencies..."
-#            pwsh playwright.ps1 install-deps chromium
-#          } else {
-#            Write-Host "Windows detected, skipping system dependencies (not needed)"
-#          }
-#        workingDirectory: '$(System.DefaultWorkingDirectory)'
+          if ($IsLinux) {
+            Write-Host "Linux detected, installing system dependencies..."
+            pwsh playwright.ps1 install-deps chromium
+          } else {
+            Write-Host "Windows detected, skipping system dependencies (not needed)"
+          }
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
 
-# Run Playwright UI Tests
-#    - task: VSTest@2
-#      displayName: 'HelloWorld Playwright UI Tests'
-#      inputs:
-#        testAssemblyVer2: |
-#          **/*.IntegrationTests.dll
-#          !**\*TestAdapter.dll
-#          !**\obj\**
-#          !**\bin\**\ref\**
-#        uiTests: true
-#        searchFolder: '$(System.DefaultWorkingDirectory)'
-#        failOnMinTestsNotRun: true
-#        minimumExpectedTests: '1'
+    # Run Playwright UI Tests
+    - task: DotNetCoreCLI@2
+      displayName: 'Run Playwright UI Tests'
+      inputs:
+        command: test
+        projects: 'HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj'
+        arguments: '--configuration Debug --no-build'
 
 #- stage: Teardown
 #  displayName: Terraform Destroy Stage
