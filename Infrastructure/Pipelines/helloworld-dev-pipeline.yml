@@ -45,8 +45,9 @@ variables:
 stages:
 - stage: Build
   displayName: Build stage
-  pool:
-    vmImage: 'ubuntu-latest'
+  #pool:
+  #  vmImage: 'ubuntu-latest'
+  pool: "WindowsAgents"
   jobs:
   - job: Package
     displayName: Package job
