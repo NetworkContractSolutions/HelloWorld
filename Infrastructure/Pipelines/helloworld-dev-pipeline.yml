@@ -195,10 +195,25 @@ stages:
     variables:
       HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
     steps:
+    - task: DotNetCoreCLI@2
+      displayName: 'Ensure NuGet.org feed'
+      inputs:
+        command: custom
+        custom: nuget
+        arguments: >
+          add source https://api.nuget.org/v3/index.json
+          --name nuget.org
+    
+    - task: UseDotNet@2
+      displayName: 'Install .NET SDK 8.0.x' # Ensure .NET 8 is installed
+      inputs:
+        packageType: 'sdk'
+        version: '8.0.x'
+    
     - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
       displayName: 'Build .NET 8 Playwright Test Project'
 
-# Install Playwright browsers
+    # Install Playwright browsers
     - task: PowerShell@2
       displayName: 'Install Playwright Browsers and Dependencies'
       inputs:
@@ -216,64 +231,58 @@ stages:
           }
         workingDirectory: '$(System.DefaultWorkingDirectory)'
 
-# Run Playwright UI Tests
-    - task: VSTest@2
-      displayName: 'HelloWorld Playwright UI Tests'
+    # Run Playwright UI Tests
+    - task: DotNetCoreCLI@2
+      displayName: 'Run Playwright UI Tests'
       inputs:
-        testAssemblyVer2: |
-          **/*.IntegrationTests.dll
-          !**\*TestAdapter.dll
-          !**\obj\**
-          !**\bin\**\ref\**
-        uiTests: true
-        searchFolder: '$(System.DefaultWorkingDirectory)'
-        failOnMinTestsNotRun: true
-        minimumExpectedTests: '1'
+        command: test
+        projects: 'HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj'
+        arguments: '--configuration Debug --no-build'
 
-#- stage: Teardown
-#  displayName: Terraform Destroy Stage
-#  dependsOn: Deploy #Test
-#  condition: and(succeeded('Deploy'), eq('${{ parameters.teardown }}', true))
-#  pool: "WindowsAgents"
-#  jobs:
-#  - job: Teardown
-#    displayName: Teardown job
-#    steps:
-#    - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
-#      parameters:
-#        ServiceConnectionName: '$(AzureResourceManagerSC)'
-#        EnvironmentName: '$(EnvironmentName)'
-#        ContainerAppName: '$(ContainerAppName)'
+- stage: Teardown
+  displayName: Terraform Destroy Stage
+  dependsOn: Deploy #Test
+  condition: and(succeeded('Deploy'), eq('${{ parameters.teardown }}', true))
+  pool: "WindowsAgents"
+  jobs:
+  - job: Teardown
+    displayName: Teardown job
+    steps:
+    - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
+      parameters:
+        ServiceConnectionName: '$(AzureResourceManagerSC)'
+        EnvironmentName: '$(EnvironmentName)'
+        ContainerAppName: '$(ContainerAppName)'
 
-#    - task: TerraformInstaller@1
-#      displayName: Install Terraform
-#      inputs:
-#        terraformVersion: 'latest'
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: 'latest'
 
-#    - task: AzureCLI@2
-#      displayName: 'Terraform Init and Destroy'
-#      inputs:
-#        azureSubscription: '$(AzureResourceManagerSC)'
-#        scriptType: 'pscore' #'bash'
-#        scriptLocation: 'inlineScript'
-#        workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
-#        inlineScript: |
+    - task: AzureCLI@2
+      displayName: 'Terraform Init and Destroy'
+      inputs:
+        azureSubscription: '$(AzureResourceManagerSC)'
+        scriptType: 'pscore' #'bash'
+        scriptLocation: 'inlineScript'
+        workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+        inlineScript: |
           # Define a unique state file key for this build
-#          $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
-#          Write-Host "Using state file: $STATE_FILE_KEY"
+          $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+          Write-Host "Using state file: $STATE_FILE_KEY"
           
-#          terraform init `
-#            --backend-config="key=$STATE_FILE_KEY" `
-#            --reconfigure
+          terraform init `
+            --backend-config="key=$STATE_FILE_KEY" `
+            --reconfigure
 
-#          terraform destroy --auto-approve `
-#            --var="container_app_name=$(ContainerAppName)" `
-#            --var="environment=$(EnvironmentName)" `
-#            --var="location=$(Region)" `
-#            --var="existing_cae_resource_group_name=$(ResourceGroup)" `
-#            --var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" `
-#            --var="managed_identity_name=$(ManagedIdentityName)" `
-#            --var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" `
-#            --var="container_registry_login_server=$(ContainerRegistryLoginServer)" `
-#            --var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" `
-#            --var="target_port=8080"
+          terraform destroy --auto-approve `
+            --var="container_app_name=$(ContainerAppName)" `
+            --var="environment=$(EnvironmentName)" `
+            --var="location=$(Region)" `
+            --var="existing_cae_resource_group_name=$(ResourceGroup)" `
+            --var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" `
+            --var="managed_identity_name=$(ManagedIdentityName)" `
+            --var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" `
+            --var="container_registry_login_server=$(ContainerRegistryLoginServer)" `
+            --var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" `
+            --var="target_port=8080"
