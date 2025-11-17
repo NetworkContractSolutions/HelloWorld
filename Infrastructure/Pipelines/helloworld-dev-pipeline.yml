@@ -65,15 +65,9 @@ stages:
           } else {
             Write-Host "NuGet source '$sourceUrl' already registered."
           }
-
-    - task: PowerShell@2
-      displayName: 'Verify NuGet sources'
-      inputs:
-        targetType: 'inline'
-        script: dotnet nuget list source
-
+    
     - task: UseDotNet@2
-      displayName: 'Install .NET SDK 8.0.x'
+      displayName: 'Install .NET SDK 8.0.x' # Ensure .NET 8 is installed
       inputs:
         packageType: 'sdk'
         version: '8.0.x'
