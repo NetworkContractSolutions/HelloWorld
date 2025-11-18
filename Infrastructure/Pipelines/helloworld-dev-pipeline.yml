@@ -258,6 +258,7 @@ stages:
         ServiceConnectionName: '$(AzureResourceManagerSC)'
         EnvironmentName: '$(EnvironmentName)'
         ContainerAppName: '$(ContainerAppName)'
+      continueOnError: true
 
     - task: TerraformInstaller@1
       displayName: Install Terraform
