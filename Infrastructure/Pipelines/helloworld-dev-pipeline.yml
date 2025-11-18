@@ -79,7 +79,7 @@ stages:
         terraformVersion: 'latest'
 
     - task: AzureCLI@2
-      displayName: 'Terraform Init and Plan'
+      displayName: 'Terraform Plan'
       inputs:
         azureSubscription: '$(AzureResourceManagerSC)'
         scriptType: 'pscore' #'bash'
@@ -143,7 +143,7 @@ stages:
               terraformVersion: 'latest'
 
           - task: AzureCLI@2
-            displayName: 'Terraform Init and Apply'
+            displayName: 'Terraform Apply'
             inputs:
               azureSubscription: '$(AzureResourceManagerSC)'
               scriptType: 'pscore' #'bash'
@@ -250,23 +250,26 @@ stages:
   condition: and(succeeded('Deploy'), eq('${{ parameters.teardown }}', true))
   pool: "WindowsAgents"
   jobs:
-  - job: Teardown
-    displayName: Teardown job
+  - job: RemoveCAEIntegration
+    displayName: Remove CAE Integration job
+    continueOnError: true
     steps:
     - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
       parameters:
         ServiceConnectionName: '$(AzureResourceManagerSC)'
         EnvironmentName: '$(EnvironmentName)'
         ContainerAppName: '$(ContainerAppName)'
-      continueOnError: true
-
+      
+  - job: TeardownCA
+    displayName: Teardown CA job
+    steps:
     - task: TerraformInstaller@1
       displayName: Install Terraform
       inputs:
         terraformVersion: 'latest'
 
     - task: AzureCLI@2
-      displayName: 'Terraform Init and Destroy'
+      displayName: 'Terraform Destroy'
       inputs:
         azureSubscription: '$(AzureResourceManagerSC)'
         scriptType: 'pscore' #'bash'
