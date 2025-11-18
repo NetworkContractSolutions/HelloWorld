@@ -210,7 +210,7 @@ stages:
 - stage: Teardown
   displayName: Terraform Destroy Stage
   #dependsOn: Deploy #Test
-  condition: and(succeeded('Deploy'), eq('${{ parameters.teardown }}', true))
+  #condition: and(succeeded('Deploy'), eq('${{ parameters.teardown }}', true))
   pool: "WindowsAgents"
   jobs:
   - job: Teardown
