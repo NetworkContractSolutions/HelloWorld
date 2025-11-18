@@ -262,7 +262,12 @@ stages:
       
   - job: TeardownCA
     displayName: Teardown CA job
+    dependsOn: RemoveCAEIntegration
+    condition: always()
     steps:
+    - checkout: self
+      path: s/helloworld
+    
     - task: TerraformInstaller@1
       displayName: Install Terraform
       inputs:
