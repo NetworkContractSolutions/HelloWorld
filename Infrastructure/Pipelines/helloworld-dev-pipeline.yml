@@ -26,7 +26,7 @@ resources:
 variables:
   ContainerRegistryRepository: 'helloworld'
   Region: 'centralus'
-  ContainerAppName: 'helloworld-dev-ca-19230' #'helloworld-dev-ca-$(Build.BuildId)'
+  ContainerAppName: 'helloworld-dev-ca-19240' #'helloworld-dev-ca-$(Build.BuildId)'
   EnvironmentName: '${{ lower(parameters.EnvironmentName) }}'
   ResourceGroup: 'rg-${{ lower(parameters.EnvironmentName) }}-usc'
   #Variables that are defined in the pipeline
@@ -216,6 +216,9 @@ stages:
   - job: Teardown
     displayName: Teardown job
     steps:
+    - checkout: self
+      path: s/helloworld
+    
     - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
       parameters:
         ServiceConnectionName: '$(AzureResourceManagerSC)'

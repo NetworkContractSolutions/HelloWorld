@@ -409,3 +409,4 @@ copilot-instructions.md
 # Local tests files
 test_local_*.sh
 HomeTestLocal.*
+temp/
