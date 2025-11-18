@@ -21,7 +21,7 @@ resources:
     type: github
     name: NetworkContractSolutions/Ncontracts.Infrastructure
     endpoint: NContractsGithub
-    ref: poc01-cae-agw # point to main before merging
+    ref: main
 
 variables:
   ContainerRegistryRepository: 'helloworld'
