@@ -180,7 +180,7 @@ stages:
                 $url = "https://" + $aca.properties.configuration.ingress.fqdn
                 Write-Host "##vso[task.setvariable variable=IngressContainerAppUrl;isOutput=true]$url"
 
-                $deployment = '$(ContainerAppName)-$(EnvironmentName).dev.ncontracts.com'
+                $deployment = 'https://$(ContainerAppName)-$(EnvironmentName).dev.ncontracts.com'
                 Write-Host "DevNcontracts Container App URL: $deployment"
                 Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$deployment"
       
@@ -193,8 +193,23 @@ stages:
   - job: RunTests
     displayName: Run Tests
     variables:
-      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['retrieveurl.ContainerAppUrl'] ]
+      HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
     steps:
+    # Verify URL was passed correctly
+    - task: PowerShell@2
+      displayName: 'Verify HomePageUrl'
+      inputs:
+        targetType: 'inline'
+        script: |
+          Write-Host "HomePageUrl received: $(HomePageUrl)"
+          if ([string]::IsNullOrWhiteSpace("$(HomePageUrl)")) {
+            Write-Error "HomePageUrl is empty!"
+            exit 1
+          }
+          if (-not "$(HomePageUrl)".StartsWith("http")) {
+            Write-Warning "HomePageUrl does not start with http/https: $(HomePageUrl)"
+          }
+    
     # Build Playwright test project
     - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
       displayName: 'Build .NET 8 Playwright Test Project'
@@ -227,7 +242,7 @@ stages:
       inputs:
         command: test
         projects: 'HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj'
-        arguments: '--configuration Debug --no-build -- TestRunParameters.Parameter(name=HomePageUrl,value=$(HomePageUrl))'
+        arguments: '--configuration Debug --no-build'
 
 - stage: Teardown
   displayName: Terraform Destroy Stage
