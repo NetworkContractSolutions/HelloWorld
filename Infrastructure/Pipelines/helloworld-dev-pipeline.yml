@@ -246,7 +246,7 @@ stages:
 
 - stage: Teardown
   displayName: Terraform Destroy Stage
-  dependsOn: Deploy #Test
+  dependsOn: Test
   condition: and(succeeded('Deploy'), eq('${{ parameters.teardown }}', true))
   pool: "WindowsAgents"
   jobs:
