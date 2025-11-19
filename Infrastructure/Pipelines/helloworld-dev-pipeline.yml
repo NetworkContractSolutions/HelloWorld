@@ -91,7 +91,7 @@ stages:
           Write-Host "Using state file: $STATE_FILE_KEY"
           
           terraform init `
-            --backend-config="container=$(EnvironmentName)" `
+            --backend-config="container_name=$(EnvironmentName)" `
             --backend-config="key=$STATE_FILE_KEY" `
             --reconfigure
           
@@ -156,7 +156,7 @@ stages:
                 Write-Host "Using state file: $STATE_FILE_KEY"
                 
                 terraform init `
-                  --backend-config="container=$(EnvironmentName)" `
+                  --backend-config="container_name=$(EnvironmentName)" `
                   --backend-config="key=$STATE_FILE_KEY" `
                   --reconfigure
                 
@@ -288,7 +288,7 @@ stages:
           Write-Host "Using state file: $STATE_FILE_KEY"
           
           terraform init `
-            --backend-config="container=$(EnvironmentName)" `
+            --backend-config="container_name=$(EnvironmentName)" `
             --backend-config="key=$STATE_FILE_KEY" `
             --reconfigure
 
