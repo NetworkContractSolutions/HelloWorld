@@ -15,6 +15,9 @@ trigger: none
 #     - 'HelloWorld/*'
 #     - 'HelloWorld.IntegrationTests/*'
 
+# Ensure only one run of this pipeline executes at a time
+lockBehavior: sequential
+
 resources:
   repositories:
   - repository: infrastructure
@@ -38,9 +41,6 @@ variables:
   ContainerRegistrySC: 'NContractsSC'
   #LogAnalyticsWorkspace
   #LogAnalyticsResourceGroup: <Log analytics isn't created here and we can't assume that the container app and log analytics will be in the same resource group>
-  #ContainerRegistryUsername
-  #ContainerRegistryPassword
-  #ContainerAppEnvironmentId: <The id of the container app environment (az containerapp env list)>
 
 stages:
 - stage: Build
@@ -91,6 +91,7 @@ stages:
           Write-Host "Using state file: $STATE_FILE_KEY"
           
           terraform init `
+            --backend-config="container=$(EnvironmentName)" `
             --backend-config="key=$STATE_FILE_KEY" `
             --reconfigure
           
@@ -155,6 +156,7 @@ stages:
                 Write-Host "Using state file: $STATE_FILE_KEY"
                 
                 terraform init `
+                  --backend-config="container=$(EnvironmentName)" `
                   --backend-config="key=$STATE_FILE_KEY" `
                   --reconfigure
                 
@@ -286,6 +288,7 @@ stages:
           Write-Host "Using state file: $STATE_FILE_KEY"
           
           terraform init `
+            --backend-config="container=$(EnvironmentName)" `
             --backend-config="key=$STATE_FILE_KEY" `
             --reconfigure
 

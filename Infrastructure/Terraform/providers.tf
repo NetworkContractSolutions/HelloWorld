@@ -4,7 +4,7 @@ terraform {
   backend "azurerm" {
     resource_group_name  = "rg-dev-devops-usc"
     storage_account_name = "sadevterraformusc"
-    container_name       = "hello-world"
+    # container_name       = "hello-world" # Configured dynamically in the pipeline
     # key                  = "hello-world-tf.tfstate" # Configured dynamically in the pipeline
     use_azuread_auth     = true # Use Azure AD authentication
   }

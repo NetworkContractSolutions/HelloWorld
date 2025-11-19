@@ -128,57 +128,39 @@ Outputs
 
 ## Azure DevOps Pipeline
 
-The pipeline `pipelines/helloworld-tf-pipeline.yml` provides automated deployment through Azure DevOps with the following features:
+The pipeline `Infrastructure/Pipelines/helloworld-dev-pipeline.yml` orchestrates image builds, Terraform, integration, and end-to-end validation.
 
 ### Pipeline Parameters
-- **EnvironmentName**: Choose from POC01, Feature01, Feature02, or Prod (default: POC01)
-- **teardown**: Boolean to destroy infrastructure instead of deploying (default: false)
+- **EnvironmentName**: Lower-cased string used to derive resource names (default: `poc01`).
+- **teardown**: Boolean flag that controls the final teardown stage (default: `true`). Set to `false` to keep the environment after deployment/testing.
 
-### Pipeline Stages
+### Built-in Pipeline Variables
+- `ContainerRegistryRepository` (`helloworld`), `ContainerRegistryLoginServer` (`ncontracts.azurecr.io`).
+- `Region` (`centralus`), `ResourceGroup` (`rg-<env>-usc`), `ContainerAppEnvironmentName` (`cae-<env>-usc`).
+- `ContainerAppName` is set to `helloworld-dev-ca-$(Build.BuildId)` per run, ensuring unique deployments.
+- `ManagedIdentityName`/`ManagedIdentityResourceGroupName` refer to pre-created DevOps identities.
+- `AzureResourceManagerSC` and `ContainerRegistrySC` must exist as service connections (`Dev-Limited`, `NContractsSC` in the sample).
 
-#### 1. Build Stage
-- Builds and pushes Docker image to Azure Container Registry
-- Uses Docker@2 task with buildAndPush command
-- Tags image with Build.BuildId for traceability
+### Stage Overview
+- **Build (Ubuntu)**: Runs Docker@2 `buildAndPush`, producing `$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)`.
+- **TerraformPlan (Windows)**: Checks out the repo, installs Terraform, and runs init/plan via AzureCLI. Each run writes state to `helloworld-<env>-<BuildId>.tfstate`, pins `target_port=8080`, and publishes the plan directory as the `terraform-plan` artifact.
+- **Deploy (Windows)**: Downloads the artifact, repeats `terraform init` with the same state key, and executes `terraform apply --auto-approve tfplan`. After apply it:
+  - Calls `Templates/Tasks/InitializeCAE1.yml@infrastructure` to wire CAE routing.
+  - Executes an Azure CLI script that captures both the raw ingress FQDN and the friendly `https://<app>-<env>.dev.ncontracts.com` URL, exposing them via pipeline variables for later stages.
+- **Test (Windows)**: Consumes the friendly URL, verifies it is non-empty, builds the Playwright-powered `HelloWorld.IntegrationTests` project, installs browsers (Chromium), and runs `dotnet test` against the deployed Container App.
+- **Teardown (Windows, conditional)**: When `teardown=true` and the Deploy stage succeeded, the pipeline removes CAE integration via `RemoveCAEIntegration1.yml@infrastructure` and runs `terraform destroy` with the same variable set/state key to clean up the Container App.
 
-#### 2. Terraform Plan Stage
-- Installs latest Terraform version
-- Runs `terraform init` and `terraform plan`
-- Publishes terraform plan as pipeline artifact
-- Uses dynamic variables based on environment parameter
-
-#### 3. Terraform Apply Stage (conditional)
-- Downloads terraform plan artifact
-- Runs `terraform apply -auto-approve`
-- Initializes Container App Environment integration
-- Retrieves Container App URL for testing
-- Only runs when teardown=false
-
-#### 4. Terraform Destroy Stage (conditional)
-- Removes Container App Environment integration
-- Runs `terraform destroy -auto-approve`
-- Only runs when teardown=true
-
-### Required Pipeline Variables
-The following variables must be configured in your Azure DevOps pipeline:
-- `ContainerRegistrySC`: Service connection for Azure Container Registry
-- `AzureResourceManagerSC`: Service connection for Azure Resource Manager
-- `ContainerRegistryLoginServer`: ACR login server URL
-- `ManagedIdentityName`: User managed identity name
-- `ManagedIdentityResourceGroupName`: User managed identity resource group
-- `ContainerAppEnvironment`: Container App Environment identifier
-
-### Integration with External Templates
-The pipeline references external templates from `NetworkContractSolutions/Ncontracts.Infrastructure`:
-- `InitializeCAE1.yml`: Sets up Container App Environment integration
-- `RemoveCAEIntegration1.yml`: Cleans up CAE integration during teardown
+### External Template Dependencies
+Pulled from `NetworkContractSolutions/Ncontracts.Infrastructure` (via the `infrastructure` repository resource):
+- `Templates/Tasks/InitializeCAE1.yml` — enables ingress and integration after deploy.
+- `Templates/Tasks/RemoveCAEIntegration1.yml` — reverses the integration prior to destroy.
 
 ### Running the Pipeline
-1. Queue the pipeline in Azure DevOps
-2. Select environment (POC01, Feature01, Feature02, or Prod)
-3. Choose teardown option (false for deploy, true for destroy)
-4. Pipeline will build, plan, and deploy automatically
-5. Container App URL will be available in pipeline outputs
+1. Queue `helloworld-dev-pipeline` in Azure DevOps.
+2. Choose an `EnvironmentName` (any lowercase token used for naming) and set `teardown` to `false` if you need to keep the environment alive post-run.
+3. Provide/override service-connection variables if your project uses different names.
+4. Monitor stages in order: Build → TerraformPlan → Deploy → Test (Playwright) → Teardown (optional).
+5. Retrieve the Container App URL from the Deploy stage logs or from the `HomePageUrl` variable emitted to the Test stage if you need to run manual checks.
 
 Destroy
-- Use terraform destroy manually or set teardown=true in the pipeline to remove all managed resources created by this stack.
+- Set `teardown=true` (default) to have the pipeline remove the Container App automatically, or run `terraform destroy` locally for ad-hoc cleanup using the same variables.
