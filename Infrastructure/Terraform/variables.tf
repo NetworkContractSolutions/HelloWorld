@@ -1,84 +1,78 @@
-#####################
-#### Local values ###
-#####################
-
-locals {
-  project_name = "helloworld"
-
-  tags = {
-    "Project"     = local.project_name
-    "Environment" = var.environment
-    "Location"    = var.location
-    "IaCTool"     = "Terraform"
-    "CostCenter"  = "Engineering"
-    "Owner"       = "Infrastructure Team"
-  }
-}
-
-###################################
-### Global variable definitions ###
-###################################
+# ============================================================================
+# DEPLOYMENT CONFIGURATION
+# ============================================================================
+# These variables control where and how your Container App is deployed.
+# In Azure DevOps pipelines, these are passed via --var flags.
 
 variable "environment" {
-  description = "The environment for the resources (e.g., dev, prod)"
+  description = "Environment name (e.g., poc01, dev, staging, prod)"
   type        = string
   default     = "poc01"
 }
 
 variable "location" {
-  description = "The Azure region where resources will be deployed"
+  description = "Azure region for resource deployment"
   type        = string
   default     = "centralus"
 }
 
-########################################
-### Container App specific variables ###
-########################################
+# ============================================================================
+# EXISTING INFRASTRUCTURE REFERENCES
+# ============================================================================
+# These reference pre-existing Azure resources that your Container App uses.
 
-variable "container_app_name" {
-  description = "The name of the Container App"
-  type        = string
-  default     = "ca-helloworld-poc01-usc-001"
-}
-
-variable "existing_cae_resource_group_name" {
-  description = "The name of the existing resource group"
+variable "resource_group_name" {
+  description = "Name of existing Resource Group where Container App will be deployed"
   type        = string
   default     = "rg-poc01-usc"
 }
 
-variable "existing_container_app_environment_name" {
-  description = "The name of the existing Container App Environment"
+variable "container_app_environment_name" {
+  description = "Name of existing Container App Environment (shared infrastructure)"
   type        = string
   default     = "cae-poc01-usc"
 }
 
 variable "managed_identity_name" {
-  description = "The name of the user-assigned managed identity"
+  description = "Name of existing User-Assigned Managed Identity for ACR access"
   type        = string
   default     = "uami-poc01-usc"
 }
 
 variable "managed_identity_resource_group_name" {
-  description = "The resource group name where the managed identity is located"
+  description = "Resource Group containing the Managed Identity"
   type        = string
   default     = "rg-poc01-usc"
 }
 
+# ============================================================================
+# CONTAINER APP CONFIGURATION
+# ============================================================================
+
+variable "container_app_name" {
+  description = "Name for the Container App (must be unique within the environment)"
+  type        = string
+  default     = "ca-helloworld-poc01-usc-001"
+}
+
+variable "target_port" {
+  description = "Port number your container listens on (ASP.NET Core default: 8080)"
+  type        = number
+  default     = 8080
+}
+
+# ============================================================================
+# CONTAINER REGISTRY & IMAGE
+# ============================================================================
+
 variable "container_registry_login_server" {
-  description = "The login server URL for the container registry"
+  description = "Azure Container Registry login server URL"
   type        = string
   default     = "ncontracts.azurecr.io"
 }
 
 variable "container_image" {
-  description = "The name of the container image to deploy"
+  description = "Full container image path including tag (e.g., myregistry.azurecr.io/app:v1.0)"
   type        = string
   default     = "ncontracts.azurecr.io/helloworld:latest"
-}
-
-variable "target_port" {
-  description = "The port on which the container listens"
-  type        = number
-  default     = 8080 # Default port for ASP.NET apps
 }
