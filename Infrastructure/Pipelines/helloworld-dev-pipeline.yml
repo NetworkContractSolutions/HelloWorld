@@ -24,7 +24,7 @@ resources:
     type: github
     name: NetworkContractSolutions/Ncontracts.Infrastructure
     endpoint: NContractsGithub
-    ref: main
+    ref: standardize-removal
 
 variables:
   ContainerRegistryRepository: 'helloworld'
