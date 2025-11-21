@@ -21,13 +21,13 @@ variable "location" {
 # ============================================================================
 # These reference pre-existing Azure resources that your Container App uses.
 
-variable "resource_group_name" {
+variable "existing_cae_resource_group_name" {
   description = "Name of existing Resource Group where Container App will be deployed"
   type        = string
   default     = "rg-poc01-usc"
 }
 
-variable "container_app_environment_name" {
+variable "existing_container_app_environment_name" {
   description = "Name of existing Container App Environment (shared infrastructure)"
   type        = string
   default     = "cae-poc01-usc"

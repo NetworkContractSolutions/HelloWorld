@@ -1,11 +1,11 @@
 # Reference existing Resource Group where Container App will be deployed
 data "azurerm_resource_group" "rg" {
-  name = var.resource_group_name
+  name = var.existing_cae_resource_group_name
 }
 
 # Reference existing Container App Environment (shared infrastructure)
 data "azurerm_container_app_environment" "env" {
-  name                = var.container_app_environment_name
+  name                = var.existing_container_app_environment_name
   resource_group_name = data.azurerm_resource_group.rg.name
 }
 

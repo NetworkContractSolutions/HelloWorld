@@ -83,10 +83,11 @@ Exposes the app URL for testing or pipeline integration.
 
    Edit the defaults in `variables.tf` or create `terraform.tfvars`:
    ```hcl
-   environment              = "dev"
-   container_app_name       = "ca-myapp-dev-001"
-   resource_group_name      = "rg-dev-usc"
-   container_image          = "myregistry.azurecr.io/myapp:v1.0"
+   environment                              = "dev"
+   container_app_name                       = "ca-myapp-dev-001"
+   existing_cae_resource_group_name         = "rg-dev-usc"
+   existing_container_app_environment_name  = "cae-dev-usc"
+   container_image                          = "myregistry.azurecr.io/myapp:v1.0"
    ```
 
 4. **Plan & Apply**
@@ -125,8 +126,8 @@ See `Infrastructure/Pipelines/helloworld-dev-pipeline.yml` for a complete CI/CD 
 |----------|-------------|---------|-------------------|
 | `container_app_name` | Unique name for Container App | `ca-helloworld-poc01-usc-001` | Yes - includes Build ID |
 | `container_image` | Full image path with tag | `ncontracts.azurecr.io/helloworld:latest` | Yes - uses Build ID tag |
-| `resource_group_name` | Existing Resource Group | `rg-poc01-usc` | Yes - based on environment |
-| `container_app_environment_name` | Existing CAE | `cae-poc01-usc` | Yes - based on environment |
+| `existing_cae_resource_group_name` | Existing Resource Group | `rg-poc01-usc` | Yes - based on environment |
+| `existing_container_app_environment_name` | Existing CAE | `cae-poc01-usc` | Yes - based on environment |
 | `target_port` | Container listening port | `8080` | No |
 
 ### Container App Settings
