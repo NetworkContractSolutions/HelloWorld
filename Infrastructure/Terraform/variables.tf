@@ -56,13 +56,13 @@ variable "existing_container_app_environment_name" {
 variable "managed_identity_name" {
   description = "The name of the user-assigned managed identity"
   type        = string
-  default     = "uami-poc01-usc"
+  default     = "mi-dev-devops-usc"
 }
 
 variable "managed_identity_resource_group_name" {
   description = "The resource group name where the managed identity is located"
   type        = string
-  default     = "rg-poc01-usc"
+  default     = "rg-dev-devops-usc"
 }
 
 variable "container_registry_login_server" {

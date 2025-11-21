@@ -55,7 +55,7 @@ stages:
       displayName: Build and Push
       inputs:
         command: buildAndPush
-        containerRegistry: '$(ContainerRegistrySC)'
+        containerRegistry: '$(ManagedIdentityName)' # '$(ContainerRegistrySC)'
         repository: '$(ContainerRegistryRepository)'
         tags: $(Build.BuildId)
         Dockerfile: '**/HelloWorld/Dockerfile'
@@ -82,7 +82,7 @@ stages:
       displayName: 'Terraform Plan'
       inputs:
         azureSubscription: '$(AzureResourceManagerSC)'
-        scriptType: 'pscore' #'bash'
+        scriptType: 'pscore'
         scriptLocation: 'inlineScript'
         workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
         inlineScript: |
@@ -147,7 +147,7 @@ stages:
             displayName: 'Terraform Apply'
             inputs:
               azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'pscore' #'bash'
+              scriptType: 'pscore'
               scriptLocation: 'inlineScript'
               workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
               inlineScript: |
@@ -279,7 +279,7 @@ stages:
       displayName: 'Terraform Destroy'
       inputs:
         azureSubscription: '$(AzureResourceManagerSC)'
-        scriptType: 'pscore' #'bash'
+        scriptType: 'pscore'
         scriptLocation: 'inlineScript'
         workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
         inlineScript: |
