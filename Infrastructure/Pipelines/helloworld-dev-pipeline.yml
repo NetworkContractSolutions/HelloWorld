@@ -55,7 +55,7 @@ stages:
       displayName: Build and Push
       inputs:
         command: buildAndPush
-        containerRegistry: '$(ManagedIdentityName)' # '$(ContainerRegistrySC)'
+        containerRegistry: '$(ContainerRegistrySC)'
         repository: '$(ContainerRegistryRepository)'
         tags: $(Build.BuildId)
         Dockerfile: '**/HelloWorld/Dockerfile'
