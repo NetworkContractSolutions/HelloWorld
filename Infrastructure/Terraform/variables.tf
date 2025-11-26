@@ -72,7 +72,7 @@ variable "container_registry_login_server" {
 }
 
 variable "container_image" {
-  description = "Full container image path including tag (e.g., myregistry.azurecr.io/app:v1.0)"
+  description = "Full container image path including tag (e.g., myregistry.azurecr.io/helloworld:12345). REQUIRED - must be passed from pipeline with specific build tag."
   type        = string
-  default     = "ncontracts.azurecr.io/helloworld:latest"
+  # No default - this variable is required to prevent accidental deployment of 'latest' tag
 }
