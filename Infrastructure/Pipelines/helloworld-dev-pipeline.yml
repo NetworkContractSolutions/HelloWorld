@@ -16,7 +16,7 @@ trigger: none
 #     - 'HelloWorld.IntegrationTests/*'
 
 # Ensure only one run of this pipeline executes at a time
-lockBehavior: sequential
+# lockBehavior: sequential
 
 resources:
   repositories:
