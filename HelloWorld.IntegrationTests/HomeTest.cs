@@ -1,17 +1,16 @@
-﻿using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Support.UI;
+﻿using Microsoft.Playwright;
+using Microsoft.Playwright.NUnit;
 using NUnit.Framework;
 
 namespace HelloWorld.IntegrationTests
 {
     [TestFixture]
-    public class HomeTest
+    public class HomeTest : PageTest
     {
         private string _homePageUrl = "https://helloworld.localtest.me";
 
         [SetUp]
-        public void HomeTestInitialize()
+        public async Task HomeTestInitialize()
         {
             string homePageUrl = Environment.GetEnvironmentVariable("HomePageUrl");
             if (!string.IsNullOrEmpty(homePageUrl))
@@ -21,139 +20,113 @@ namespace HelloWorld.IntegrationTests
         }
 
         [Test]
-        public void NavigateToWebsiteRoot()
+        public async Task NavigateToWebsiteRoot()
         {
-            using (var driver = new ChromeDriver())
-            {
-                driver.Url = _homePageUrl;
-                driver.Navigate();
-                var home = new HelloWorldHome(driver);
-                Assert.IsTrue(home.IsOnHomePage(_homePageUrl), "Home page should be displayed.");
-                Assert.IsTrue(home.PageHasHomeTitle(), "Home page should be displayed.");
-            }
+            await Page.GotoAsync(_homePageUrl);
+            var home = new HelloWorldHome(Page);
+            Assert.That(await home.IsOnHomePage(_homePageUrl), Is.True, "Home page should be displayed.");
+            Assert.That(await home.PageHasHomeTitle(), Is.True, "Home page should have correct title.");
         }
 
         [Test]
-        public void NavigateToPrivacyPageFromNav()
+        public async Task NavigateToPrivacyPageFromNav()
         {
-            using (var driver = new ChromeDriver())
-            {
-                driver.Url = _homePageUrl;
-                driver.Navigate();
-                var home = new HelloWorldHome(driver);
-                var privacy = home.ClickPrivacyNav();
-                Assert.IsTrue(privacy.IsOnPrivacyPage(), "Privacy page should be displayed.");
-            }
+            await Page.GotoAsync(_homePageUrl);
+            var home = new HelloWorldHome(Page);
+            await home.ClickPrivacyNav();
+            Assert.That(await home.IsOnPrivacyPage(), Is.True, "Privacy page should be displayed.");
         }
+
         [Test]
-        public void NavigateToHomeFromPrivacyUsingBrand()
+        public async Task NavigateToHomeFromPrivacyUsingBrand()
         {
-            using (var driver = new ChromeDriver())
-            {
-                driver.Url = _homePageUrl;
-                driver.Navigate();
-                var home = new HelloWorldHome(driver);
-                home.ClickPrivacyNav();
-                var privacy = home.ClickBrand();
-                Assert.IsTrue(home.IsOnHomePage(_homePageUrl), "Home page should be displayed.");
-            }
+            await Page.GotoAsync(_homePageUrl);
+            var home = new HelloWorldHome(Page);
+            await home.ClickPrivacyNav();
+            await home.ClickBrand();
+            Assert.That(await home.IsOnHomePage(_homePageUrl), Is.True, "Home page should be displayed.");
         }
     }
 
     public class HelloWorldHome
     {
-        private readonly ChromeDriver _driver;
+        private readonly IPage _page;
 
-        public HelloWorldHome(ChromeDriver driver)
+        public HelloWorldHome(IPage page)
         {
-            _driver = driver;
+            _page = page;
         }
 
-        public bool PageHasHomeTitle()
+        public async Task<bool> PageHasHomeTitle()
         {
-            return _driver.Title == "Home Page - HelloWorld";
+            var title = await _page.TitleAsync();
+            return title == "Home Page - HelloWorld";
         }
 
-        public bool PageHasPrivacyTitle()
+        public async Task<bool> PageHasPrivacyTitle()
         {
-            return _driver.Title == "Privacy Policy - HelloWorld";
+            var title = await _page.TitleAsync();
+            return title == "Privacy Policy - HelloWorld";
         }
 
-        public HelloWorldHome ClickBrand()
+        public async Task<HelloWorldHome> ClickBrand()
         {
-            WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(5));
-            IWebElement firstResult = wait.Until(e => e.FindElement(By.Id("brandLink")));
-
-            firstResult?.Click();
-
+            await _page.Locator("#brandLink").ClickAsync();
             return this;
         }
 
-        public HelloWorldHome ClickHomeNav()
+        public async Task<HelloWorldHome> ClickHomeNav()
         {
-            WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(5));
-            IWebElement firstResult = wait.Until(e => e.FindElement(By.Id("homeNavLink")));
-
-            firstResult?.Click();
-
+            await _page.Locator("#homeNavLink").ClickAsync();
             return this;
         }
 
-        public HelloWorldHome ClickPrivacyNav()
+        public async Task<HelloWorldHome> ClickPrivacyNav()
         {
-            WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(5));
-            IWebElement firstResult = wait.Until(e => e.FindElement(By.Id("privacyNavLink")));
-
-            firstResult?.Click();
-
+            await _page.Locator("#privacyNavLink").ClickAsync();
             return this;
         }
 
-        public HelloWorldHome ClickLearnAbout()
+        public async Task<HelloWorldHome> ClickLearnAbout()
         {
-            WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(5));
-            IWebElement firstResult = wait.Until(e => e.FindElement(By.Id("learnAboutLink")));
-
-            firstResult?.Click();
-
+            await _page.Locator("#learnAboutLink").ClickAsync();
             return this;
         }
 
-        public HelloWorldHome ClickPrivacyFooter()
+        public async Task<HelloWorldHome> ClickPrivacyFooter()
         {
-            WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(5));
-            IWebElement firstResult = wait.Until(e => e.FindElement(By.Id("privacyFooterLink")));
-
-            firstResult?.Click();
-
+            await _page.Locator("#privacyFooterLink").ClickAsync();
             return this;
         }
 
-        public bool IsOnHomePage(string baseUrl)
+        public async Task<bool> IsOnHomePage(string baseUrl)
         {
             try
             {
-                return DriverUrl().Equals(baseUrl, StringComparison.OrdinalIgnoreCase);
+                var url = DriverUrl();
+                return url.Equals(baseUrl, StringComparison.OrdinalIgnoreCase);
             }
-            catch { }
-
-            return false;
+            catch
+            {
+                return false;
+            }
         }
 
         private string DriverUrl()
         {
-            return _driver.Url.TrimEnd('/');
+            return _page.Url.TrimEnd('/');
         }
 
-        public bool IsOnPrivacyPage()
+        public async Task<bool> IsOnPrivacyPage()
         {
             try
             {
                 return DriverUrl().EndsWith("/Home/Privacy", StringComparison.OrdinalIgnoreCase);
             }
-            catch { }
-
-            return false;
+            catch
+            {
+                return false;
+            }
         }
     }
 }

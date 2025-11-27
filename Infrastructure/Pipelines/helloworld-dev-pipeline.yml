@@ -1,4 +1,8 @@
 parameters:
+- name: EnvironmentName
+  displayName: Environment Name (poc01, feature01, feature02, etc.)
+  type: string
+  default: 'poc01'
 - name: teardown
   displayName: Teardown Environment
   type: boolean
@@ -11,20 +15,32 @@ trigger: none
 #     - 'HelloWorld/*'
 #     - 'HelloWorld.IntegrationTests/*'
 
+# Ensure only one run of this pipeline executes at a time
+# lockBehavior: sequential
+
+resources:
+  repositories:
+  - repository: infrastructure
+    type: github
+    name: NetworkContractSolutions/Ncontracts.Infrastructure
+    endpoint: NContractsGithub
+    ref: main
+
 variables:
   ContainerRegistryRepository: 'helloworld'
   Region: 'centralus'
   ContainerAppName: 'helloworld-dev-ca-$(Build.BuildId)'
-  ResourceGroup: 'helloworld-dev-rg-$(Build.BuildId)'
+  EnvironmentName: '${{ lower(parameters.EnvironmentName) }}'
+  ResourceGroup: 'rg-${{ lower(parameters.EnvironmentName) }}-usc'
   #Variables that are defined in the pipeline
-  #ContainerRegistrySC: <Service Connection for the Container Registry>
-  #AzureResourceManagerSC: <Name of the Azure Resource Manager service connection>
+  ContainerAppEnvironmentName: 'cae-${{ lower(parameters.EnvironmentName) }}-usc'
+  ManagedIdentityName: 'mi-dev-devops-usc'
+  ManagedIdentityResourceGroupName: 'rg-dev-devops-usc'
+  ContainerRegistryLoginServer: 'ncontracts.azurecr.io'
+  AzureResourceManagerSC: 'Dev-Limited'
+  ContainerRegistrySC: 'NContractsSC'
   #LogAnalyticsWorkspace
   #LogAnalyticsResourceGroup: <Log analytics isn't created here and we can't assume that the container app and log analytics will be in the same resource group>
-  #ContainerRegistryLoginServer
-  #ContainerRegistryUsername
-  #ContainerRegistryPassword
-  #ContainerAppEnvironment: <The id of the container app environment (az containerapp env list)>
 
 stages:
 - stage: Build
@@ -44,11 +60,68 @@ stages:
         tags: $(Build.BuildId)
         Dockerfile: '**/HelloWorld/Dockerfile'
 
-- stage: Deploy
-  displayName: Deploy stage
+# New Terraform Plan stage
+- stage: TerraformPlan
+  displayName: Terraform Plan Stage
   dependsOn: Build
-  pool:
-    vmImage: 'ubuntu-latest'
+  condition: succeeded('Build')
+  pool: "WindowsAgents"
+  jobs:
+  - job: Plan
+    displayName: Terraform Plan job
+    steps:
+    - checkout: self
+      path: s/helloworld
+
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: 'latest'
+
+    - task: AzureCLI@2
+      displayName: 'Terraform Plan'
+      inputs:
+        azureSubscription: '$(AzureResourceManagerSC)'
+        scriptType: 'pscore' #'bash'
+        scriptLocation: 'inlineScript'
+        workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+        inlineScript: |
+          # Define a unique state file key for this build
+          # NOTE: Most applications use a single shared state file per environment (e.g., "helloworld-poc01.tfstate")
+          # This project uses per-build state files to enable parallel testing and automatic teardown
+          $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+          Write-Host "Using state file: $STATE_FILE_KEY"
+          
+          terraform init `
+            --backend-config="container_name=$(EnvironmentName)" `
+            --backend-config="key=$STATE_FILE_KEY" `
+            --reconfigure
+          
+          terraform plan `
+            --var="container_app_name=$(ContainerAppName)" `
+            --var="environment=$(EnvironmentName)" `
+            --var="location=$(Region)" `
+            --var="existing_cae_resource_group_name=$(ResourceGroup)" `
+            --var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" `
+            --var="managed_identity_name=$(ManagedIdentityName)" `
+            --var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" `
+            --var="container_registry_login_server=$(ContainerRegistryLoginServer)" `
+            --var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" `
+            --var="target_port=8080" `
+            --out=tfplan
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Terraform Plan'
+      inputs:
+        targetPath: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+        artifact: 'terraform-plan'
+        publishLocation: 'pipeline'
+
+- stage: Deploy
+  displayName: Terraform Apply Stage
+  dependsOn: TerraformPlan
+  condition: succeeded('TerraformPlan')
+  pool: "WindowsAgents"
   jobs:
   - deployment: Deploy
     displayName: Deploy job
@@ -57,42 +130,47 @@ stages:
       runOnce:
         deploy:
           steps:
-          - task: AzureCLI@2
-            displayName: 'Create Resource Group'
+          - checkout: self
+            path: s/helloworld
+
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Terraform Plan'
             inputs:
-              azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'pscore'
-              scriptLocation: 'inlineScript'
-              inlineScript: | 
-                az group create -l $(Region) -n $(ResourceGroup)
+              buildType: 'current'
+              artifactName: 'terraform-plan'
+              targetPath: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+
+          - task: TerraformInstaller@1
+            displayName: Install Terraform
+            inputs:
+              terraformVersion: 'latest'
 
           - task: AzureCLI@2
-            displayName: 'Container App - Init Extension'
+            displayName: 'Terraform Apply'
             inputs:
               azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'pscore'
+              scriptType: 'pscore' #'bash'
               scriptLocation: 'inlineScript'
-              inlineScript: | 
-                az extension add --name containerapp
-                az provider register --namespace Microsoft.App
+              workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+              inlineScript: |
+                # Define a unique state file key for this build
+                $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+                Write-Host "Using state file: $STATE_FILE_KEY"
+                
+                terraform init `
+                  --backend-config="container_name=$(EnvironmentName)" `
+                  --backend-config="key=$STATE_FILE_KEY" `
+                  --reconfigure
+                
+                terraform apply --auto-approve tfplan
 
-          - task: AzureCLI@2
-            displayName: 'Container App - Create'
-            inputs:
-              azureSubscription: '$(AzureResourceManagerSC)'
-              scriptType: 'pscore'
-              scriptLocation: 'inlineScript'
-              inlineScript: | 
-                az containerapp create `
-                  --name $(ContainerAppName) `
-                  --resource-group $(ResourceGroup) `
-                  --environment $(ContainerAppEnvironment) `
-                  --image $(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId) `
-                  --target-port 80 `
-                  --ingress 'external' `
-                  --registry-server $(ContainerRegistryLoginServer) `
-                  --registry-username $(ContainerRegistryUsername) `
-                  --registry-password $(ContainerRegistryPassword)
+          - template: Templates/Tasks/InitializeCAE1.yml@infrastructure
+            parameters:
+              ServiceConnectionName: '$(AzureResourceManagerSC)'
+              EnvironmentName: '$(EnvironmentName)'
+              BrowserFriendlyRouting: true
+              ContainerAppFilter: '^$(ContainerAppName)$'
+              InternalOnly: true
 
           - task: AzureCLI@2
             displayName: 'Get CA URL'
@@ -101,55 +179,131 @@ stages:
               azureSubscription: '$(AzureResourceManagerSC)'
               scriptType: 'pscore'
               scriptLocation: 'inlineScript'
-              inlineScript: | 
+              inlineScript: |
                 $aca = az containerapp list -g $(ResourceGroup) | ConvertFrom-Json | Where-Object {$_.name -eq "$(ContainerAppName)"} | Select-Object -First 1
+                $url = "https://" + $aca.properties.configuration.ingress.fqdn
+                Write-Host "##vso[task.setvariable variable=IngressContainerAppUrl;isOutput=true]$url"
 
-                $url = "https://" + $aca.properties.configuration.ingress.fqdn 
-                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$url"
+                $deployment = 'https://$(ContainerAppName)-$(EnvironmentName).dev.ncontracts.com'
+                Write-Host "DevNcontracts Container App URL: $deployment"
+                Write-Host "##vso[task.setvariable variable=ContainerAppUrl;isOutput=true]$deployment"
       
+# Playwright tests against the deployed application
 - stage: Test
   displayName: Test stage
   dependsOn: Deploy
-  pool:
-    vmImage: 'windows-2022'
+  pool: "WindowsAgents"
   jobs:
   - job: RunTests
     displayName: Run Tests
     variables:
       HomePageUrl: $[ stageDependencies.Deploy.Deploy.outputs['Deploy.retrieveurl.ContainerAppUrl'] ]
     steps:
-    - script: dotnet build --configuration Debug
-      displayName: 'Build .NET 6 Application'
-
-    - task: VSTest@2
-      displayName: 'HelloWorld UI Tests'
+    # Verify URL was passed correctly
+    - task: PowerShell@2
+      displayName: 'Verify HomePageUrl'
       inputs:
-        testAssemblyVer2: |
-          **/*.IntegrationTests.dll
-          !**\*TestAdapter.dll
-          !**\obj\**
-          !**\bin\**\ref\**
-        uiTests: true
-        searchFolder: '$(System.DefaultWorkingDirectory)'
-        failOnMinTestsNotRun: true
-        minimumExpectedTests: '1'
+        targetType: 'inline'
+        script: |
+          Write-Host "HomePageUrl received: $(HomePageUrl)"
+          if ([string]::IsNullOrWhiteSpace("$(HomePageUrl)")) {
+            Write-Error "HomePageUrl is empty!"
+            exit 1
+          }
+          if (-not "$(HomePageUrl)".StartsWith("http")) {
+            Write-Warning "HomePageUrl does not start with http/https: $(HomePageUrl)"
+          }
+    
+    # Build Playwright test project
+    - script: dotnet build HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj --configuration Debug
+      displayName: 'Build .NET 8 Playwright Test Project'
+      env:
+        HomePageUrl: $(HomePageUrl)
+
+    # Install Playwright browsers and dependencies
+    - task: PowerShell@2
+      displayName: 'Install Playwright Browsers and Dependencies'
+      env:
+        HomePageUrl: $(HomePageUrl)
+      inputs:
+        targetType: 'inline'
+        script: |
+          cd HelloWorld.IntegrationTests/bin/Debug/net8.0
+          pwsh playwright.ps1 install chromium
+          if ($IsLinux) {
+            Write-Host "Linux detected, installing system dependencies..."
+            pwsh playwright.ps1 install-deps chromium
+          } else {
+            Write-Host "Windows detected, skipping system dependencies (not needed)"
+          }
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+    # Run UI tests against the deployed Container App
+    - task: DotNetCoreCLI@2
+      displayName: 'Run Playwright UI Tests'
+      env:
+        HomePageUrl: $(HomePageUrl)
+      inputs:
+        command: test
+        projects: 'HelloWorld.IntegrationTests/HelloWorld.IntegrationTests.csproj'
+        arguments: '--configuration Debug --no-build'
 
 - stage: Teardown
-  displayName: Teardown stage
+  displayName: Terraform Destroy Stage
   dependsOn: Test
-  condition: eq('${{ parameters.teardown }}', true)
-  pool:
-    vmImage: 'ubuntu-latest'
+  condition: and(succeeded('Deploy'), eq('${{ parameters.teardown }}', true))
+  pool: "WindowsAgents"
   jobs:
-  - job: Teardown
-    displayName: Teardown job
+  - job: RemoveCAEIntegration
+    displayName: Remove CAE Integration job
+    continueOnError: true
     steps:
-    - checkout: none
+    - template: Templates/Tasks/RemoveCAEIntegration1.yml@infrastructure
+      parameters:
+        ServiceConnectionName: '$(AzureResourceManagerSC)'
+        EnvironmentName: '$(EnvironmentName)'
+        ContainerAppName: '$(ContainerAppName)'
+      
+  - job: TeardownCA
+    displayName: Teardown CA job
+    dependsOn: RemoveCAEIntegration
+    condition: always()
+    steps:
+    - checkout: self
+      path: s/helloworld
+    
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: 'latest'
+
     - task: AzureCLI@2
-      displayName: 'Delete Resource Group'
+      displayName: 'Terraform Destroy'
       inputs:
         azureSubscription: '$(AzureResourceManagerSC)'
-        scriptType: 'pscore'
+        scriptType: 'pscore' #'bash'
         scriptLocation: 'inlineScript'
-        inlineScript: | 
-          az group delete -n $(ResourceGroup) --yes --no-wait
+        workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
+        inlineScript: |
+          # Define a unique state file key for this build
+          # NOTE: Most applications use a single shared state file per environment (e.g., "helloworld-poc01.tfstate")
+          # This project uses per-build state files to enable parallel testing and automatic teardown
+          $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+          Write-Host "Using state file: $STATE_FILE_KEY"
+          
+          terraform init `
+            --backend-config="container_name=$(EnvironmentName)" `
+            --backend-config="key=$STATE_FILE_KEY" `
+            --reconfigure
+
+          terraform destroy --auto-approve `
+            --var="container_app_name=$(ContainerAppName)" `
+            --var="environment=$(EnvironmentName)" `
+            --var="location=$(Region)" `
+            --var="existing_cae_resource_group_name=$(ResourceGroup)" `
+            --var="existing_container_app_environment_name=$(ContainerAppEnvironmentName)" `
+            --var="managed_identity_name=$(ManagedIdentityName)" `
+            --var="managed_identity_resource_group_name=$(ManagedIdentityResourceGroupName)" `
+            --var="container_registry_login_server=$(ContainerRegistryLoginServer)" `
+            --var="container_image=$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)" `
+            --var="target_port=8080"
