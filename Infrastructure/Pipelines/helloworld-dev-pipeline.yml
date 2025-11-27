@@ -16,7 +16,7 @@ trigger: none
 #     - 'HelloWorld.IntegrationTests/*'
 
 # Ensure only one run of this pipeline executes at a time
-lockBehavior: sequential
+# lockBehavior: sequential
 
 resources:
   repositories:
@@ -87,6 +87,8 @@ stages:
         workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
         inlineScript: |
           # Define a unique state file key for this build
+          # NOTE: Most applications use a single shared state file per environment (e.g., "helloworld-poc01.tfstate")
+          # This project uses per-build state files to enable parallel testing and automatic teardown
           $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
           Write-Host "Using state file: $STATE_FILE_KEY"
           
@@ -284,6 +286,8 @@ stages:
         workingDirectory: '$(Pipeline.Workspace)/s/helloworld/Infrastructure/Terraform'
         inlineScript: |
           # Define a unique state file key for this build
+          # NOTE: Most applications use a single shared state file per environment (e.g., "helloworld-poc01.tfstate")
+          # This project uses per-build state files to enable parallel testing and automatic teardown
           $STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
           Write-Host "Using state file: $STATE_FILE_KEY"
           

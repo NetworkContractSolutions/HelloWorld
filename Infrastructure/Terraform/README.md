@@ -1,166 +1,266 @@
-# Terraform Infrastructure for HelloWorld (Azure)
+# Terraform Infrastructure for HelloWorld Container App
 
-This Terraform stack provisions:
-- 1 Azure Container App (external ingress, image from registry, basic autoscale)
-- Uses existing Resource Group and Azure Container Apps Environment
-- Consistent resource naming via a local naming module
+This Terraform configuration deploys an ASP.NET Core application to Azure Container Apps. It's designed as a simple, copy-paste-able example for developers new to Terraform and Azure Container Apps.
 
-Repository layout
-- providers.tf: Backend and AzureRM provider settings
-- variables.tf: Global variables, tags, and Container App parameters
-- main.tf: References existing infrastructure and creates Container App
-- tf-modules/**: Reusable internal modules (naming, RG, ACA Environment, ACA)
-- pipelines/helloworld-tf-pipeline.yml: Azure DevOps pipeline for Terraform deployment
+## What Gets Deployed
 
-Prerequisites
+- **1 Azure Container App** - Your containerized application with:
+  - External HTTPS ingress (auto-provisioned SSL)
+  - Auto-scaling (1-10 replicas)
+  - Managed identity authentication to Azure Container Registry
 
-### Core Requirements
-- Terraform ~> 1.0 installed
-- Azure subscription access for the tenant/subscription IDs configured in providers.tf
-- Permission to read/write the remote state storage account and container
-- Existing Resource Group and Container App Environment (referenced in variables)
+## Prerequisites
 
-### Local Development Tools (Optional)
-For using `tf_run_local.sh`:
-- tflint: `curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash`
-- checkov: `brew install checkov` (macOS) or `pip install checkov`
+### Required Azure Resources (Pre-existing)
+These must exist before running Terraform:
+- Azure Container App Environment (shared across multiple apps)
+- Resource Group
+- User-Assigned Managed Identity (with AcrPull permission on your container registry)
+- Azure Container Registry with your application image
 
-Backend (remote state) — providers.tf
-- Backend type: azurerm (Azure Storage)
-  - resource_group_name: rg-dev-devops-usc
-  - storage_account_name: sadevterraformusc
-  - container_name: hello-world
-  - key: hello-world-tf.tfstate
-  - use_azuread_auth: true (Azure AD auth for backend)
-- Notes:
-  - Ensure your identity can read/write the storage account/container above.
-  - State is shared across users; use workspaces if managing multiple environments.
+### Required Tools
+- [Terraform](https://www.terraform.io/downloads) ~> 1.0
+- Azure CLI (authenticated: `az login`)
+- Access to the Azure subscription and state storage account
 
-Provider — providers.tf
-- azurerm ~> 4.0
-- Explicit tenant_id and subscription_id set
-- storage_use_azuread = true (Azure AD auth for storage SDK)
-- resource_provider_registrations = "none" (provider will not auto-register RP; make sure Microsoft.App is registered)
+## Project Structure
 
-Inputs — variables.tf
-- environment (string, default: "poc01")
-- location (string, default: "centralus")
-- container_app_name (string, computed from naming module)
-- existing_resource_group_name (string, default: "rg-poc01-usc")
-- existing_container_app_environment_name (string, default: "cae-poc01-usc")
-- container_registry_login_server (string, default: "ncontracts.azurecr.io")
-- container_registry_username (string, sensitive)
-- container_registry_password (string, sensitive)
-- container_image (string, default: "ncontracts.azurecr.io/helloworld:latest")
-- Locals (implicit): tags and project_name = "helloworld"
-  - tags include Project, Environment, Location, IaCTool, CostCenter, Owner
+```
+Infrastructure/Terraform/
+├── main.tf          # Container App resource and data sources (66 lines)
+├── variables.tf     # Input variables with descriptions and defaults
+├── providers.tf     # Terraform backend and Azure provider configuration
+├── outputs.tf       # Outputs (URLs, names) for pipeline consumption
+└── README.md        # This file
+```
 
-Architecture — main.tf
-- module "naming" (tf-modules/az-naming)
-  - Purpose: builds consistent, lowercase names using function, environment, and location
-  - Output used: function_name (e.g., helloworld-poc01-<loc>)
-- data "azurerm_resource_group" (existing)
-  - References existing resource group by name
-- data "azurerm_container_app_environment" (existing)
-  - References existing Container App Environment by name and resource group
-- module "container_app" (tf-modules/az-container-app)
-  - Name: configured via container_app_name variable
-  - Key inputs:
-    - revision_mode = "Single"
-    - ingress_external_enabled = true
-    - target_port = 8080 (ASP.NET Core default port)
-    - ingress_transport = "auto"
-    - Registry: login_server, username, password
-    - Image: container_image
-    - Resources: container_cpu = "0.5", container_memory = "1.0Gi"
-    - Scale: min_replicas = 1, max_replicas = 10
+**Key Point**: Everything is in these 4 files. No custom modules, no complex abstractions.
 
-How to use
+## How It Works
+
+### 1. Reference Existing Infrastructure
+```hcl
+data "azurerm_resource_group" "rg" {
+  name = var.resource_group_name
+}
+```
+Terraform looks up your existing Resource Group, Container App Environment, and Managed Identity.
+
+### 2. Deploy Container App
+```hcl
+resource "azurerm_container_app" "app" {
+  name                         = var.container_app_name
+  container_app_environment_id = data.azurerm_container_app_environment.env.id
+  # ... configuration ...
+}
+```
+Creates your Container App with ingress, registry authentication, and scaling configured.
+
+### 3. Output URLs
+```hcl
+output "container_app_url" {
+  value = "https://${azurerm_container_app.app.ingress[0].fqdn}"
+}
+```
+Exposes the app URL for testing or pipeline integration.
+
+## Quick Start
 
 ### Local Development
-1) Ensure the target Resource Group and Container App Environment exist
-2) Set input variables via one of:
-   - terraform.tfvars (recommended for non-sensitive values)
-   - Environment variables TF_VAR_<name> (recommended for secrets/sensitive values)
-3) Use the provided script for local operations:
+
+1. **Authenticate to Azure**
    ```bash
-   # Make script executable
-   chmod +x tf_run_local.sh
-   
-   # Available commands
-   ./tf_run_local.sh plan .     # Format, validate, and plan
-   ./tf_run_local.sh apply .    # Format, validate, and apply
-   ./tf_run_local.sh destroy .  # Destroy resources
-   ./tf_run_local.sh validate . # Format, validate, lint, and security check
+   az login
    ```
-4) The script includes linting (tflint) and security checks (checkov)
 
-### Production Deployment (Recommended)
-Use the Azure DevOps pipeline `pipelines/helloworld-tf-pipeline.yml` which handles:
-- Docker image building and pushing
-- Terraform planning and applying
-- Container App Environment integration
-- URL retrieval and testing setup
+2. **Initialize Terraform**
+   ```bash
+   cd Infrastructure/Terraform
+   terraform init
+   ```
 
-Example terraform.tfvars
-environment = "poc01"
-location    = "centralus"
-existing_resource_group_name = "rg-poc01-usc"
-existing_container_app_environment_name = "cae-poc01-usc"
-container_app_name = "ca-helloworld-poc01-usc-12345"
+3. **Customize Variables** (optional)
 
-# Container registry configuration
-container_registry_login_server      = "ncontracts.azurecr.io" \
-managed_identity_name                = "managed_identity" \
-managed_identity_resource_group_name = "managed_identity_rg" \
-container_image                      = "ncontracts.azurecr.io/helloworld:latest"
+   Edit the defaults in `variables.tf` or create `terraform.tfvars`:
+   ```hcl
+   environment                              = "dev"
+   container_app_name                       = "ca-myapp-dev-001"
+   existing_cae_resource_group_name         = "rg-dev-usc"
+   existing_container_app_environment_name  = "cae-dev-usc"
+   container_image                          = "myregistry.azurecr.io/myapp:v1.0"
+   ```
 
-Customization
-- Container port and ingress: change target_port and ingress_* in module "container_app" inputs (main.tf).
-  - Default is 8080 for ASP.NET Core applications. Ensure your image exposes this port.
-- Image and registry: set container_image and registry credentials in terraform.tfvars or environment variables.
-- Resources and autoscale: adjust container_cpu, container_memory, min_replicas, max_replicas in main.tf.
-- Infrastructure dependencies: update existing_resource_group_name and existing_container_app_environment_name to reference your target infrastructure.
-- Naming: the naming module composes names and uses compact semantics to drop empty segments; all names are lowercased.
+4. **Plan & Apply**
+   ```bash
+   terraform plan
+   terraform apply
+   ```
 
-Outputs
-- Module outputs are defined within tf-modules; if your container app module exposes FQDN or URL, use those outputs after apply. Otherwise, you can read the FQDN from the azurerm_container_app resource (ingress.fqdn) inside the module.
+5. **Get the URL**
+   ```bash
+   terraform output container_app_url
+   ```
 
-## Azure DevOps Pipeline
+### Azure DevOps Pipeline (Recommended)
 
-The pipeline `Infrastructure/Pipelines/helloworld-dev-pipeline.yml` orchestrates image builds, Terraform, integration, and end-to-end validation.
+See `Infrastructure/Pipelines/helloworld-dev-pipeline.yml` for a complete CI/CD example:
 
-### Pipeline Parameters
-- **EnvironmentName**: Lower-cased string used to derive resource names (default: `poc01`).
-- **teardown**: Boolean flag that controls the final teardown stage (default: `true`). Set to `false` to keep the environment after deployment/testing.
+**Pipeline Flow:**
+1. **Build** - Builds Docker image, pushes to ACR with Build ID as tag
+2. **TerraformPlan** - Runs `terraform plan` with unique state file
+3. **Deploy** - Runs `terraform apply`, configures routing, retrieves URL
+4. **Test** - Runs Playwright integration tests against deployed app
+5. **Teardown** - Optionally runs `terraform destroy` to clean up
 
-### Built-in Pipeline Variables
-- `ContainerRegistryRepository` (`helloworld`), `ContainerRegistryLoginServer` (`ncontracts.azurecr.io`).
-- `Region` (`centralus`), `ResourceGroup` (`rg-<env>-usc`), `ContainerAppEnvironmentName` (`cae-<env>-usc`).
-- `ContainerAppName` is set to `helloworld-dev-ca-$(Build.BuildId)` per run, ensuring unique deployments.
-- `ManagedIdentityName`/`ManagedIdentityResourceGroupName` refer to pre-created DevOps identities.
-- `AzureResourceManagerSC` and `ContainerRegistrySC` must exist as service connections (`Dev-Limited`, `NContractsSC` in the sample).
+**Key Pipeline Features:**
+- Variables passed via `--var` flags (no need to edit .tf files)
+- Unique state file per build: `helloworld-{env}-{buildId}.tfstate`
+- Automatic URL retrieval for testing
+- Conditional teardown controlled by pipeline parameter
 
-### Stage Overview
-- **Build (Ubuntu)**: Runs Docker@2 `buildAndPush`, producing `$(ContainerRegistryLoginServer)/$(ContainerRegistryRepository):$(Build.BuildId)`.
-- **TerraformPlan (Windows)**: Checks out the repo, installs Terraform, and runs init/plan via AzureCLI. Each run writes state to `helloworld-<env>-<BuildId>.tfstate`, pins `target_port=8080`, and publishes the plan directory as the `terraform-plan` artifact.
-- **Deploy (Windows)**: Downloads the artifact, repeats `terraform init` with the same state key, and executes `terraform apply --auto-approve tfplan`. After apply it:
-  - Calls `Templates/Tasks/InitializeCAE1.yml@infrastructure` to wire CAE routing.
-  - Executes an Azure CLI script that captures both the raw ingress FQDN and the friendly `https://<app>-<env>.dev.ncontracts.com` URL, exposing them via pipeline variables for later stages.
-- **Test (Windows)**: Consumes the friendly URL, verifies it is non-empty, builds the Playwright-powered `HelloWorld.IntegrationTests` project, installs browsers (Chromium), and runs `dotnet test` against the deployed Container App.
-- **Teardown (Windows, conditional)**: When `teardown=true` and the Deploy stage succeeded, the pipeline removes CAE integration via `RemoveCAEIntegration1.yml@infrastructure` and runs `terraform destroy` with the same variable set/state key to clean up the Container App.
+## Configuration Reference
 
-### External Template Dependencies
-Pulled from `NetworkContractSolutions/Ncontracts.Infrastructure` (via the `infrastructure` repository resource):
-- `Templates/Tasks/InitializeCAE1.yml` — enables ingress and integration after deploy.
-- `Templates/Tasks/RemoveCAEIntegration1.yml` — reverses the integration prior to destroy.
+### Essential Variables
 
-### Running the Pipeline
-1. Queue `helloworld-dev-pipeline` in Azure DevOps.
-2. Choose an `EnvironmentName` (any lowercase token used for naming) and set `teardown` to `false` if you need to keep the environment alive post-run.
-3. Provide/override service-connection variables if your project uses different names.
-4. Monitor stages in order: Build → TerraformPlan → Deploy → Test (Playwright) → Teardown (optional).
-5. Retrieve the Container App URL from the Deploy stage logs or from the `HomePageUrl` variable emitted to the Test stage if you need to run manual checks.
+| Variable | Description | Default | Pipeline Override |
+|----------|-------------|---------|-------------------|
+| `container_app_name` | Unique name for Container App | `ca-helloworld-poc01-usc-001` | Yes - includes Build ID |
+| `container_image` | Full image path with tag | `ncontracts.azurecr.io/helloworld:latest` | Yes - uses Build ID tag |
+| `existing_cae_resource_group_name` | Existing Resource Group | `rg-poc01-usc` | Yes - based on environment |
+| `existing_container_app_environment_name` | Existing CAE | `cae-poc01-usc` | Yes - based on environment |
+| `target_port` | Container listening port | `8080` | No |
 
-Destroy
-- Set `teardown=true` (default) to have the pipeline remove the Container App automatically, or run `terraform destroy` locally for ad-hoc cleanup using the same variables.
+### Container App Settings
+
+Located in `main.tf` lines 48-59:
+
+```hcl
+template {
+  container {
+    cpu    = "0.5"      # 0.5 CPU cores
+    memory = "1Gi"      # 1 GiB memory
+  }
+  min_replicas = 1      # Always at least 1 instance
+  max_replicas = 10     # Scale up to 10 instances
+}
+```
+
+**To customize**: Edit these values directly in `main.tf` or convert them to variables.
+
+## Remote State Configuration
+
+State is stored in Azure Blob Storage (see `providers.tf`):
+
+```hcl
+backend "azurerm" {
+  resource_group_name  = "rg-dev-devops-usc"
+  storage_account_name = "sadevterraformusc"
+  use_azuread_auth     = true
+}
+```
+
+**Pipeline Behavior:**
+- Each pipeline run creates a unique state file: `helloworld-{env}-{buildId}.tfstate`
+- This allows multiple deployments without state conflicts
+- State files are stored in separate containers per environment (e.g., `poc01`, `dev`)
+
+**State Cleanup:**
+- State files accumulate over time
+- Consider implementing a cleanup process for old state files
+- Or use a shared state file for persistent environments
+
+## Common Customizations
+
+### Change Container Resources
+Edit `main.tf` lines 53-54:
+```hcl
+cpu    = "1.0"   # Double the CPU
+memory = "2Gi"   # Double the memory
+```
+
+### Change Scaling Behavior
+Edit `main.tf` lines 57-58:
+```hcl
+min_replicas = 2    # Always have 2 instances
+max_replicas = 20   # Scale up to 20 instances
+```
+
+### Change Container Port
+Edit `variables.tf` line 61 (or pass via `--var`):
+```hcl
+default = 5000  # If your app listens on port 5000
+```
+
+### Add Environment Variables
+Add to the `container` block in `main.tf`:
+```hcl
+container {
+  name   = var.container_app_name
+  image  = var.container_image
+  cpu    = "0.5"
+  memory = "1Gi"
+
+  env {
+    name  = "ASPNETCORE_ENVIRONMENT"
+    value = var.environment
+  }
+
+  env {
+    name  = "ApplicationInsights__ConnectionString"
+    value = "your-connection-string"
+  }
+}
+```
+
+## Teardown
+
+### Local
+```bash
+terraform destroy
+```
+
+### Pipeline
+Set the `teardown` parameter to `true` (default) when running the pipeline.
+
+**What gets destroyed:**
+- The Container App resource
+- The Terraform state file remains in storage for audit purposes
+
+**What's preserved:**
+- Container App Environment (shared infrastructure)
+- Resource Group
+- Managed Identity
+- Container images in ACR
+
+## Troubleshooting
+
+### "No declaration found for var.xxx"
+Make sure you've defined all variables in `variables.tf`. Run `terraform init` to refresh.
+
+### "Error: Backend initialization required"
+Run `terraform init` or `terraform init --reconfigure` to set up the backend.
+
+### "Error acquiring the state lock"
+Another Terraform process is running. Wait for it to complete or use `terraform force-unlock` (use cautiously).
+
+### Pipeline can't find Container App after deployment
+Check that the `container_app_name` variable matches between Plan and Apply stages. The pipeline uses `$(ContainerAppName)` which includes the Build ID.
+
+### Playwright tests fail
+- Verify `HomePageUrl` is being passed correctly (Pipeline line 198)
+- Check that the Container App is actually running: `az containerapp show -n {name} -g {rg}`
+- Verify external ingress is enabled and HTTPS certificate is provisioned
+
+## Learning Resources
+
+- [Terraform Azure Provider Docs](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
+- [Azure Container Apps Documentation](https://learn.microsoft.com/en-us/azure/container-apps/)
+- [Terraform Best Practices](https://www.terraform.io/docs/cloud/guides/recommended-practices/index.html)
+
+## Next Steps
+
+1. **Run the pipeline** to see the full workflow in action
+2. **Experiment locally** with `terraform plan` to see what changes before applying
+3. **Customize** the configuration for your specific application needs
+4. **Add secrets** using Azure Key Vault references (see Azure Container Apps docs)
+5. **Implement** multi-environment configurations using workspaces or separate .tfvars files
