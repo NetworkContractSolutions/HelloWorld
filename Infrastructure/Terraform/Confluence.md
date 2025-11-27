@@ -5,8 +5,9 @@
 This HelloWorld demo application uses a **non-standard per-build state file pattern** for Terraform. Most production applications should use a **single shared state file per environment**. This demo creates and destroys infrastructure with each pipeline run for testing purposes.
 
 **Key Points:**
-- **State Files**: Unique per build (`helloworld-poc01-12345.tfstate`) stored in Azure Blob Storage
-- **Standard Pattern**: Production apps should use `myapp-{environment}.tfstate` for persistent infrastructure
+- **State Files**: Unique per build (`helloworld-12345.tfstate`) stored in environment-specific containers
+- **Standard Pattern**: Production apps should use `myapp.tfstate` (same name across environments, different containers)
+- **Storage Hierarchy**: Environment determined by container name (poc01, dev, staging, prod), not state file name
 - **App Gateway**: InitializeCAE template configures App Gateway routing after Terraform deployment
 - **Custom URLs**: Apps are accessible via browser-friendly URLs (e.g., `https://helloworld-dev-ca-12345-poc01.dev.ncontracts.com`)
 - **Teardown**: Each build cleans up its own resources automatically
@@ -107,19 +108,20 @@ terraform {
 ```
 Storage Account: stdevtfstateusc
 └── Container (per environment): poc01, dev, staging, prod
-    └── State Files (per build): helloworld-{env}-{buildId}.tfstate
+    └── State Files: helloworld.tfstate (or helloworld-{buildId}.tfstate for demo apps)
 ```
 
-**Example:**
+**Standard Production Example:**
 - Storage Account: `stdevtfstateusc`
-- Container: `poc01`
-- State File: `helloworld-poc01-12345.tfstate` (for Build ID 12345)
+- Container: `poc01` (defines the environment)
+- State File: `myapp.tfstate` (same filename in all environment containers)
 
----
+**HelloWorld Demo Example:**
+- Storage Account: `stdevtfstateusc`
+- Container: `poc01` (defines the environment)
+- State File: `helloworld-12345.tfstate` (unique per build)
 
-- Storage Account: `stprdtfstateusc`
-- Container: `production`
-- State File: `authentication-ui.tfstate` (for the Authentication UI app)
+**Key Concept:** The **container name determines the environment**, not the state file name. This allows the same state file name (e.g., `myapp.tfstate`) to exist in multiple environments (dev, staging, prod containers).
 
 ---
 
@@ -127,27 +129,24 @@ Storage Account: stdevtfstateusc
 
 ### State File Strategy: Per-Build (Demo Application Pattern)
 
-> **IMPORTANT**: This demo application uses a **non-standard pattern** of creating unique state files per build. **Most production applications should use a single shared state file per environment** (e.g., `myapp-prod.tfstate`).
+> **IMPORTANT**: This demo application uses a **non-standard pattern** of creating unique state files per build. **Most production applications should use a single shared state file** (e.g., `myapp.tfstate`) stored in environment-specific containers.
 
 #### Standard Pattern (Recommended for Production)
 
 For typical applications with persistent infrastructure:
 
 ```yaml
-# Standard approach - single state file per environment
-$STATE_FILE_KEY = "myapp-$(EnvironmentName).tfstate"
+# Standard approach - single state file name across all environments
+# Environment is determined by the container name, not the state file name
+$STATE_FILE_KEY = "myapp.tfstate"
 ```
-
-**Examples:**
-- `myapp-dev.tfstate` - All dev deployments use this
-- `myapp-staging.tfstate` - All staging deployments use this
-- `myapp-prod.tfstate` - All production deployments use this
 
 **Benefits:**
 - Infrastructure persists across deployments
-- State file tracks the current production environment
+- State file tracks the current environment's resources
 - Updates modify existing resources rather than recreating them
-- Single source of truth for what's deployed
+- Single source of truth for what's deployed in each environment
+- Same state file name across all environments (simpler pipeline configuration)
 
 #### HelloWorld Pattern (Demo/Testing Only)
 
@@ -155,15 +154,18 @@ Because HelloWorld is a **temporary demo application** that gets torn down after
 
 ```yaml
 # Demo approach - unique state file per build
-$STATE_FILE_KEY = "helloworld-$(EnvironmentName)-$(Build.BuildId).tfstate"
+# Container name still determines the environment
+$STATE_FILE_KEY = "helloworld-$(Build.BuildId).tfstate"
 ```
 
-**Format:** `helloworld-{environment}-{buildId}.tfstate`
+**Format:** `helloworld-{buildId}.tfstate`
 
-**Examples:**
-- `helloworld-poc01-12345.tfstate` (Build 12345)
-- `helloworld-poc01-12346.tfstate` (Build 12346)
-- `helloworld-dev-54321.tfstate` (Build 54321)
+**Examples (all in container `poc01`):**
+- `helloworld-12345.tfstate` (Build 12345 in poc01 environment)
+- `helloworld-12346.tfstate` (Build 12346 in poc01 environment)
+- `helloworld-54321.tfstate` (Build 54321 in poc01 environment)
+
+**Note:** The environment is determined by which container the state file is stored in, not by the filename itself.
 
 **Why use this pattern?**
 
@@ -257,7 +259,7 @@ After Terraform creates the Container App, the pipeline runs the `InitializeCAE1
 | Parameter | Value | Description |
 |-----------|-------|-------------|
 | `ServiceConnectionName` | `$(AzureResourceManagerSC)` | Azure service connection for deploying App Gateway rules |
-| `EnvironmentName` | `$(EnvironmentName)` | Environment name (e.g., `poc01`, `dev`) used for App Gateway configuration |
+| `EnvironmentName` | `$(EnvironmentName)` | Environment name (e.g., `poc01`) used for App Gateway configuration |
 | `BrowserFriendlyRouting` | `true` | Enables human-readable URLs instead of Azure-generated FQDNs |
 | `ContainerAppFilter` | `^$(ContainerAppName)$` | Regex filter to match specific Container App (e.g., `^helloworld-dev-ca-12345$`) |
 | `InternalOnly` | `true` | Restricts access to internal network only (no public internet exposure) |
@@ -509,7 +511,7 @@ az login
 # Initialize with specific build's state file
 terraform init \
   --backend-config="container_name=poc01" \
-  --backend-config="key=helloworld-poc01-12345.tfstate" \
+  --backend-config="key=helloworld-12345.tfstate" \
   --reconfigure
 
 # View current state
@@ -556,7 +558,7 @@ StatusCode=404, ErrorCode=ContainerNotFound
 ```
 
 **Solution:**
-- Verify the container name matches the environment: `poc01`, `dev`, etc.
+- Verify the container name matches the environment: `poc01`, etc.
 - Check that the container exists in storage account `stdevtfstateusc`
 - Verify service connection has access to the storage account
 
@@ -647,7 +649,7 @@ Note: Objects have changed outside of Terraform
 
 #### Do's ✅
 
-- **Use unique build IDs for state files** - Enables parallel testing (e.g., `helloworld-poc01-12345.tfstate`)
+- **Use unique build IDs for state files** - Enables parallel testing (e.g., `helloworld-12345.tfstate`)
 - **Clean up old test state files** - Automate deletion of state files older than X days
 - **Document the non-standard pattern** - Make it clear this is for testing only
 

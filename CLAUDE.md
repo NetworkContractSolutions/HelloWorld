@@ -120,10 +120,15 @@ Infrastructure/
 - `EnvironmentName`: Environment name for resource naming (e.g., `poc01`, `dev`)
 
 **Pipeline Features:**
-- Unique state file per build: `helloworld-{env}-{buildId}.tfstate`
+- Unique state file per build: `helloworld-{buildId}.tfstate` stored in environment-specific containers
+- Environment determined by container name (poc01, dev, etc.), not state file name
 - Variables passed to Terraform via `--var` flags (no manual .tf file edits needed)
 - Automatic URL retrieval and injection into test stage
 - Conditional teardown based on parameter
+
+**State File Pattern:**
+- **Demo/HelloWorld Pattern**: `helloworld-{buildId}.tfstate` (unique per build for parallel testing)
+- **Standard Production Pattern**: `myapp.tfstate` (same filename across all environments, stored in environment-specific containers)
 
 ## Integration Testing
 
