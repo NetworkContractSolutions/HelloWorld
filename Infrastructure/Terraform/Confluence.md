@@ -43,15 +43,13 @@ This HelloWorld demo application uses a **non-standard per-build state file patt
 6. [URL Retrieval and Testing](#url-retrieval-and-testing)
 7. [State File Lifecycle](#state-file-lifecycle)
 8. [State Locking](#state-locking)
-9. [Required Permissions](#required-permissions)
-10. [Local Development with Terraform](#local-development-with-terraform)
-11. [Troubleshooting](#troubleshooting)
-12. [Best Practices](#best-practices)
+9. [Local Development with Terraform](#local-development-with-terraform)
+10. [Troubleshooting](#troubleshooting)
+11. [Best Practices](#best-practices)
     - [General Terraform State Management](#general-terraform-state-management-all-applications)
     - [Production Applications](#production-applications-standard-pattern)
     - [Demo/Test Applications](#demotest-applications-helloworld-pattern)
-13. [Additional Resources](#additional-resources)
-14. [Support](#support)
+12. [Additional Resources](#additional-resources)
 
 ---
 
@@ -116,6 +114,12 @@ Storage Account: stdevtfstateusc
 - Storage Account: `stdevtfstateusc`
 - Container: `poc01`
 - State File: `helloworld-poc01-12345.tfstate` (for Build ID 12345)
+
+---
+
+- Storage Account: `stprdtfstateusc`
+- Container: `production`
+- State File: `authentication-ui.tfstate` (for the Authentication UI app)
 
 ---
 
@@ -490,27 +494,6 @@ Lock Info:
 
 ---
 
-## Required Permissions
-
-The Azure service connection used in the pipeline (`AzureResourceManagerSC`) must have:
-
-### Storage Account Permissions
-
-- **Storage Blob Data Contributor** role on `stdevtfstateusc` storage account
-- Allows read/write/delete access to blobs in all containers
-
-### Azure Permissions
-
-- **Contributor** role on the target resource group
-- Allows Terraform to create/update/delete Container Apps and related resources
-
-### Managed Identity Permissions
-
-- The pipeline references an existing managed identity for ACR authentication
-- No permissions needed to modify the managed identity itself
-
----
-
 ## Local Development with Terraform
 
 If you need to run Terraform locally (not recommended for production):
@@ -679,17 +662,7 @@ Note: Objects have changed outside of Terraform
 
 - [Terraform Azure Backend Documentation](https://www.terraform.io/docs/language/settings/backends/azurerm.html)
 - [Azure Blob Storage State Locking](https://www.terraform.io/docs/language/settings/backends/azurerm.html#state-locking)
-- [HelloWorld Project README](https://dev.azure.com/yourorg/yourproject/_git/HelloWorld?path=/README.md)
+- [HelloWorld Project README](https://github.com/NetworkContractSolutions/HelloWorld/blob/main/README.md)
 - [HelloWorld Pipeline](https://dev.azure.com/NcontractsDevOps/NContracts/_build?definitionId=63&_a=summary)
 - [Terraform State Management Best Practices](https://www.terraform.io/docs/language/state/index.html)
 
----
-
-## Support
-
-For questions about this infrastructure:
-
-- **Pipeline Issues**: Check Azure DevOps pipeline logs
-- **Terraform Issues**: Review Terraform documentation and state files
-- **Storage Account Access**: Contact DevOps team for permissions
-- **General Questions**: Refer to the [HelloWorld README](https://dev.azure.com/yourorg/yourproject/_git/HelloWorld?path=/README.md)
