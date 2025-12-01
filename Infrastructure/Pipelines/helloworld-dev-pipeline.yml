@@ -34,7 +34,7 @@ variables:
   ResourceGroup: 'rg-${{ lower(parameters.EnvironmentName) }}-usc'
   #Variables that are defined in the pipeline
   ContainerAppEnvironmentName: 'cae-${{ lower(parameters.EnvironmentName) }}-usc'
-  ManagedIdentityName: 'mi-dev-devops-usc'
+  ManagedIdentityName: 'mi-dev-helloworld-usc'
   ManagedIdentityResourceGroupName: 'rg-dev-devops-usc'
   ContainerRegistryLoginServer: 'ncontracts.azurecr.io'
   AzureResourceManagerSC: 'Dev-Limited'
