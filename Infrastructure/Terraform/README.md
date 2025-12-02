@@ -6,7 +6,7 @@ This Terraform configuration deploys an ASP.NET Core application to Azure Contai
 
 - **1 Azure Container App** - Your containerized application with:
   - External HTTPS ingress (auto-provisioned SSL)
-  - Auto-scaling (1-10 replicas)
+  - Auto-scaling (0-1 replicas)
   - Managed identity authentication to Azure Container Registry
 
 ## Prerequisites
@@ -140,8 +140,8 @@ template {
     cpu    = "0.5"      # 0.5 CPU cores
     memory = "1Gi"      # 1 GiB memory
   }
-  min_replicas = 1      # Always at least 1 instance
-  max_replicas = 10     # Scale up to 10 instances
+  min_replicas = 0     # Initially 1 replica is created but can scale to 0
+  max_replicas = 1     # Scale to a maximum of 1 instance
 }
 ```
 

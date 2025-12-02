@@ -174,7 +174,7 @@ The Terraform configuration in [Infrastructure/Terraform/](Infrastructure/Terraf
 - No custom modules - everything is self-contained and readable
 - References existing infrastructure (Resource Group, Container App Environment, Managed Identity)
 - Managed identity authentication to Azure Container Registry (no passwords in state)
-- Auto-scaling configuration (1-10 replicas)
+- Auto-scaling configuration (0-1 replicas)
 - External HTTPS ingress with auto-provisioned SSL certificates
 
 **Local Usage:**
