@@ -24,7 +24,7 @@ resources:
     type: github
     name: NetworkContractSolutions/Ncontracts.Infrastructure
     endpoint: NContractsGithub
-    ref: delete-defrag
+    ref: main
 
 variables:
   ContainerRegistryRepository: 'helloworld'
