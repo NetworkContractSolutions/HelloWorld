@@ -24,7 +24,7 @@ resources:
     type: github
     name: NetworkContractSolutions/Ncontracts.Infrastructure
     endpoint: NContractsGithub
-    ref: main
+    ref: delete-defrag
 
 variables:
   ContainerRegistryRepository: 'helloworld'
@@ -170,7 +170,7 @@ stages:
               EnvironmentName: '$(EnvironmentName)'
               BrowserFriendlyRouting: true
               ContainerAppFilter: '^$(ContainerAppName)$'
-              InternalOnly: true
+              Visibility: 'Internal'
 
           - task: AzureCLI@2
             displayName: 'Get CA URL'
