@@ -170,7 +170,7 @@ stages:
               EnvironmentName: '$(EnvironmentName)'
               BrowserFriendlyRouting: true
               ContainerAppFilter: '^$(ContainerAppName)$'
-              Visibility: 'Internal'
+              IncludePublic: false
 
           - task: AzureCLI@2
             displayName: 'Get CA URL'
