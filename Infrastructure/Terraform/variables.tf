@@ -36,13 +36,13 @@ variable "existing_container_app_environment_name" {
 variable "managed_identity_name" {
   description = "Name of existing User-Assigned Managed Identity for ACR access"
   type        = string
-  default     = "uami-poc01-usc"
+  default     = "mi-dev-devops-usc"
 }
 
 variable "managed_identity_resource_group_name" {
   description = "Resource Group containing the Managed Identity"
   type        = string
-  default     = "rg-poc01-usc"
+  default     = "rg-dev-devops-usc"
 }
 
 # ============================================================================
